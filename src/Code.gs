@@ -350,10 +350,10 @@ function setupTaskMasterSheet(ss) {
   sheet.getRange(3, 8, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy");
   sheet.getRange(3, 12, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
-  // Explicitly Pre-Populated Sequential Auto-Task IDs for Rows 7 to 15:
-  // Zero confusion: Task IDs are immediately visible, bold, and ready for use on every row!
-  for (let r = 7; r <= 15; r++) {
-    sheet.getRange(r, 1).setValue("ALLO-OPS-" + (100 + r - 2)).setFontWeight("bold").setHorizontalAlignment("center");
+  // Smart Dynamic Auto-Task ID & Urgency Formulas for Rows 7 to 30:
+  // As soon as ANY cell in that row is touched (Description, Assignee, Cadence), Column A instantly displays the next Task ID!
+  for (let r = 7; r <= 30; r++) {
+    sheet.getRange(r, 1).setFormula(`=IF(COUNTA(B${r}:H${r})>0, "ALLO-OPS-" & (100 + ${r} - 2), "")`).setFontWeight("bold").setHorizontalAlignment("center");
     sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   }
 
@@ -893,8 +893,74 @@ function validateProof_(proof, taskId) {
 }
 
 // ----------------------------------------------------------------------------
-// 4. INTERACTIVE ENGINE: handleEdit Installable Trigger (Real User Authentication)
+// 4. INTERACTIVE ENGINE: Real-Time Auto Task ID & Triggers
 // ----------------------------------------------------------------------------
+
+/**
+ * Real-time Auto-Task ID Generator:
+ * Generates the next sequential Task ID (e.g. ALLO-OPS-105) when a user clicks on or edits an empty row!
+ */
+function autoGenerateTaskIdForRow_(sheet, row) {
+  if (!sheet || row < 7 || row > 50) return;
+  const idCell = sheet.getRange(row, 1);
+  const currentVal = String(idCell.getValue() || '').trim();
+  if (currentVal !== "") return; // Already has an ID
+  
+  // Find highest existing Task ID in column A
+  const data = sheet.getRange(3, 1, row - 1, 1).getValues();
+  let maxNum = 100;
+  for (let r = 0; r < data.length; r++) {
+    const str = String(data[r][0] || '');
+    const m = str.match(/ALLO-OPS-(\d+)/i);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > maxNum) maxNum = n;
+    }
+  }
+  const nextId = "ALLO-OPS-" + (maxNum + 1);
+  idCell.setValue(nextId).setFontWeight("bold").setHorizontalAlignment("center");
+  
+  // Pre-populate default cadence, cut-off, and due date for rapid setup
+  const d0 = new Date();
+  d0.setHours(0, 0, 0, 0);
+  const dueCell = sheet.getRange(row, 8);
+  if (!dueCell.getValue()) {
+    dueCell.setValue(d0).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
+  }
+  const cadenceCell = sheet.getRange(row, 6);
+  if (!cadenceCell.getValue()) cadenceCell.setValue(1).setHorizontalAlignment("center");
+  const cutoffCell = sheet.getRange(row, 7);
+  if (!cutoffCell.getValue()) cutoffCell.setValue("19:00 IST").setHorizontalAlignment("center");
+  const statusCell = sheet.getRange(row, 9);
+  statusCell.setFormula(`=IF(H${row}="","",IF(NOW()>H${row}+IFERROR(TIMEVALUE(LEFT(G${row},5)),1),"OVERDUE",IF(H${row}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
+  sheet.getRange(row, 10).setValue(false);
+  sheet.getRange(row, 11).setValue(false);
+  
+  sheet.getRange(row, 1, 1, 12).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange(row, 1, 1, 12).setWrap(true).setVerticalAlignment("middle");
+  sheet.setRowHeight(row, 34);
+
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast(`✨ Generated ${nextId} for Row ${row}!`, "Auto Task ID Created", 3);
+  } catch (err) {}
+}
+
+/**
+ * Simple Trigger: onSelectionChange(e)
+ * Fires automatically whenever a user clicks/selects any cell in Google Sheets!
+ */
+function onSelectionChange(e) {
+  if (!e || !e.range) return;
+  try {
+    const sheet = e.range.getSheet();
+    if (sheet.getName() !== CONFIG.SHEET_MASTER) return;
+    const row = e.range.getRow();
+    if (row >= 7 && row <= 50) {
+      autoGenerateTaskIdForRow_(sheet, row);
+    }
+  } catch (err) {}
+}
+
 function handleEdit(e) {
   if (!e || !e.range) return;
   const sheet = e.range.getSheet();
@@ -902,49 +968,9 @@ function handleEdit(e) {
   const row = e.range.getRow();
   const col = e.range.getColumn();
 
-  // A. Dual Auto Task ID in Task_Master
-  if (name === CONFIG.SHEET_MASTER && col === 2 && row >= 3) {
-    const taskDesc = e.range.getValue().toString().trim();
-    const idCell = sheet.getRange(row, 1);
-    const currentId = idCell.getValue().toString().trim();
-
-    if (taskDesc && !currentId) {
-      const existingIds = sheet.getRange(3, 1, Math.max(row - 2, 1), 1).getValues();
-      let maxNum = 100;
-      for (let r = 0; r < existingIds.length; r++) {
-        const str = existingIds[r][0].toString();
-        const match = str.match(/ALLO-OPS-(\d+)/i);
-        if (match) {
-          const num = parseInt(match[1]);
-          if (num > maxNum) maxNum = num;
-        }
-      }
-      const nextId = "ALLO-OPS-" + (maxNum + 1);
-      idCell.setValue(nextId);
-
-      const d0 = new Date();
-      d0.setHours(0, 0, 0, 0);
-
-      const dueCell = sheet.getRange(row, 8);
-      if (!dueCell.getValue()) {
-        dueCell.setValue(d0).setNumberFormat("dd/MM/yyyy");
-      }
-
-      const cadenceCell = sheet.getRange(row, 6);
-      if (!cadenceCell.getValue()) cadenceCell.setValue(1);
-
-      const cutoffCell = sheet.getRange(row, 7);
-      if (!cutoffCell.getValue()) cutoffCell.setValue("19:00 IST");
-
-      const statusCell = sheet.getRange(row, 9);
-      statusCell.setFormula(`=IF(H${row}="","",IF(NOW()>H${row}+IFERROR(TIMEVALUE(LEFT(G${row},5)),1),"OVERDUE",IF(H${row}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`);
-
-      SpreadsheetApp.getActiveSpreadsheet().toast(
-        `Auto-generated ${nextId} for "${taskDesc}". (You can overwrite with custom ID anytime)`,
-        "Task ID Auto-Created",
-        4
-      );
-    }
+  // A. Auto Task ID in Task_Master on Edit (Row 7..50)
+  if (name === CONFIG.SHEET_MASTER && row >= 7 && row <= 50) {
+    autoGenerateTaskIdForRow_(sheet, row);
     return;
   }
 
@@ -1871,21 +1897,27 @@ function applyPerfectColumnWidths() {
 // ----------------------------------------------------------------------------
 // 8. CUSTOM MENU: 1-Click Operations Control Panel (Accident-Proof)
 // ----------------------------------------------------------------------------
-function populateAllTaskMasterIds() {
+function testAutoTaskGenerationRow7() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  autoGenerateTaskIdForRow_(sheet, 7);
+}
+
+function applySmartAutoIdFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (!sheet) return;
-  const ids = [
-    ["ALLO-OPS-105"],
-    ["ALLO-OPS-106"],
-    ["ALLO-OPS-107"],
-    ["ALLO-OPS-108"],
-    ["ALLO-OPS-109"],
-    ["ALLO-OPS-110"],
-    ["ALLO-OPS-111"],
-    ["ALLO-OPS-112"]
-  ];
-  sheet.getRange(7, 1, ids.length, 1).setValues(ids).setFontWeight("bold").setHorizontalAlignment("center");
+  for (let r = 7; r <= 30; r++) {
+    sheet.getRange(r, 1).setFormula(`=IF(COUNTA(B${r}:H${r})>0, "ALLO-OPS-" & (100 + ${r} - 2), "")`).setFontWeight("bold").setHorizontalAlignment("center");
+    sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
+  }
+}
+
+function clearTaskMasterRows7Onwards() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (!sheet) return;
+  sheet.getRange(7, 1, 44, 12).clearContent();
 }
 
 function onOpen() {
