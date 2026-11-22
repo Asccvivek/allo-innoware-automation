@@ -277,6 +277,13 @@ function setupTaskMasterSheet(ss) {
   sheet.getRange(3, 8, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy");
   sheet.getRange(3, 12, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
+  // Zero-Latency Native Auto-Task ID & Urgency Formulas for Rows 7 to 30:
+  // The exact millisecond you type a Task Description in Column B, Column A instantly displays the next Task ID!
+  for (let r = 7; r <= 30; r++) {
+    sheet.getRange(r, 1).setFormula(`=IF(B${r}="","", "ALLO-OPS-" & (100 + ${r} - 2))`).setFontWeight("bold").setHorizontalAlignment("center");
+    sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
+  }
+
   // Conditional Formatting for Urgency Status (Column I)
   const rangeI = sheet.getRange("I3:I50");
   const ruleOverdue = SpreadsheetApp.newConditionalFormatRule()
@@ -1730,6 +1737,7 @@ function onOpen() {
       .addItem("⏰ 5. Setup Automated Background Triggers (Hourly & 8 AM)", "setupTriggers")
       .addItem("👥 6. Apply All Dropdowns & Validations", "applyAllSystemDropdowns")
       .addItem("📏 7. Auto-Fit & Stretch All Columns", "applyPerfectColumnWidths")
+      .addItem("➕ 8. Add New Recurring Task (Interactive Prompt)", "addNewRecurringTask")
       .addToUi();
   } catch (e) {
     Logger.log("onOpen UI initialization: " + e.message);
@@ -1739,6 +1747,84 @@ function onOpen() {
 /**
  * Quick jump to Step-by-Step Test Lab tab
  */
+
+/**
+ * 1-Click Interactive Modal to Add New Recurring Task (Guaranteed Zero-Friction)
+ */
+function addNewRecurringTask() {
+  const ui = SpreadsheetApp.getUi();
+  const respDesc = ui.prompt(
+    "Allo Innoware • Add New Recurring Task",
+    "Enter the Task Description (e.g. 'Amazon BuyBox Price Monitoring'):",
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (respDesc.getSelectedButton() !== ui.Button.OK) return;
+  const taskDesc = respDesc.getResponseText().trim();
+  if (!taskDesc) {
+    ui.alert("Task Description cannot be empty.");
+    return;
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (!masterSheet) return;
+
+  const data = masterSheet.getDataRange().getValues();
+  let maxNum = 100;
+  let nextRow = 7;
+
+  for (let r = 2; r < data.length; r++) {
+    const idStr = String(data[r][0] || '');
+    const m = idStr.match(/ALLO-OPS-(\d+)/i);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > maxNum) maxNum = n;
+    }
+  }
+
+  // Find first empty row starting from row 7
+  for (let r = 6; r < Math.max(data.length, 30); r++) {
+    const idVal = masterSheet.getRange(r + 1, 1).getValue();
+    const descVal = masterSheet.getRange(r + 1, 2).getValue();
+    if (!descVal || descVal === "") {
+      nextRow = r + 1;
+      break;
+    }
+  }
+
+  const nextId = "ALLO-OPS-" + (maxNum + 1);
+  const now = new Date();
+  const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
+  masterSheet.getRange(nextRow, 1).setValue(nextId).setFontWeight("bold").setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 2).setValue(taskDesc);
+  masterSheet.getRange(nextRow, 3).setValue("Rohan Sharma");
+  masterSheet.getRange(nextRow, 4).setValue("Logistics");
+  masterSheet.getRange(nextRow, 5).setValue("Daily (Mon-Sat)");
+  masterSheet.getRange(nextRow, 6).setValue(1).setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 7).setValue("19:00 IST").setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 8).setValue(d0).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 9).setFormula(`=IF(H${nextRow}="","",IF(NOW()>H${nextRow}+IFERROR(TIMEVALUE(LEFT(G${nextRow},5)),1),"OVERDUE",IF(H${nextRow}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 10).setValue(false);
+  masterSheet.getRange(nextRow, 11).setValue(false);
+  masterSheet.getRange(nextRow, 12).setValue("").setNumberFormat("dd/MM/yyyy HH:mm:ss");
+
+  masterSheet.getRange(nextRow, 1, 1, 12).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  masterSheet.getRange(nextRow, 1, 1, 12).setWrap(true).setVerticalAlignment("middle");
+  masterSheet.setRowHeight(nextRow, 34);
+
+  applyAllSystemDropdowns();
+
+  const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
+  if (pendingSheet) {
+    const sel = pendingSheet.getRange("D1").getValue();
+    filterPendingDeskByEmployee(pendingSheet, sel);
+  }
+
+  ss.toast(`Successfully created ${nextId}: "${taskDesc}"! Available on My_Pending_Tasks.`, "Task Added", 5);
+}
+
 function openTestLabDesk() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const lab = ss.getSheetByName(CONFIG.SHEET_TEST_LAB);
