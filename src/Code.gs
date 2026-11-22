@@ -1052,28 +1052,53 @@ function autoGenerateTaskIdForRow_(sheet, row) {
     descCell.setValue("Operational Task " + (maxNum + 1));
   }
 
-  // Ensure default assignee and department if empty
-  if (!assigneeCell.getValue() || String(assigneeCell.getValue()).trim() === "") {
+  // Ensure default assignee and department match
+  const selectedAssignee = String(assigneeCell.getValue() || '').trim();
+  if (selectedAssignee === "") {
     assigneeCell.setValue("Rohan Sharma");
+    if (!deptCell.getValue() || String(deptCell.getValue()).trim() === "") {
+      deptCell.setValue("Logistics");
+    }
+  } else {
+    if (!deptCell.getValue() || String(deptCell.getValue()).trim() === "") {
+      if (selectedAssignee.includes("Priya")) deptCell.setValue("Customer Experience");
+      else if (selectedAssignee.includes("Ankit")) deptCell.setValue("E-Commerce Ops");
+      else if (selectedAssignee.includes("Sneha")) deptCell.setValue("Supply Chain");
+      else deptCell.setValue("Logistics");
+    }
   }
-  if (!deptCell.getValue() || String(deptCell.getValue()).trim() === "") {
-    deptCell.setValue("Logistics");
-  }
-  if (!freqCell.getValue() || String(freqCell.getValue()).trim() === "") {
+
+  // Ensure default frequency, cadence, and cutoff match
+  const cadenceCell = sheet.getRange(row, 6);
+  const cutoffCell = sheet.getRange(row, 7);
+  const selectedFreq = String(freqCell.getValue() || '').trim();
+  if (selectedFreq === "") {
     freqCell.setValue("Daily (Mon-Sat)");
+    if (!cadenceCell.getValue()) cadenceCell.setValue(1).setHorizontalAlignment("center");
+    if (!cutoffCell.getValue()) cutoffCell.setValue("19:00 IST").setHorizontalAlignment("center");
+  } else {
+    if (selectedFreq.includes("Weekly")) {
+      if (!cadenceCell.getValue()) cadenceCell.setValue(7).setHorizontalAlignment("center");
+      if (!cutoffCell.getValue()) cutoffCell.setValue("18:00 IST").setHorizontalAlignment("center");
+    } else if (selectedFreq.includes("Fortnightly")) {
+      if (!cadenceCell.getValue()) cadenceCell.setValue(15).setHorizontalAlignment("center");
+      if (!cutoffCell.getValue()) cutoffCell.setValue("17:00 IST").setHorizontalAlignment("center");
+    } else if (selectedFreq.includes("Monthly")) {
+      if (!cadenceCell.getValue()) cadenceCell.setValue(30).setHorizontalAlignment("center");
+      if (!cutoffCell.getValue()) cutoffCell.setValue("17:00 IST").setHorizontalAlignment("center");
+    } else {
+      if (!cadenceCell.getValue()) cadenceCell.setValue(1).setHorizontalAlignment("center");
+      if (!cutoffCell.getValue()) cutoffCell.setValue("19:00 IST").setHorizontalAlignment("center");
+    }
   }
   
-  // Pre-populate default cadence, cut-off, and due date for rapid setup
+  // Pre-populate default due date if not set
   const d0 = new Date();
   d0.setHours(0, 0, 0, 0);
   const dueCell = sheet.getRange(row, 8);
   if (!dueCell.getValue()) {
     dueCell.setValue(d0).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
   }
-  const cadenceCell = sheet.getRange(row, 6);
-  if (!cadenceCell.getValue()) cadenceCell.setValue(1).setHorizontalAlignment("center");
-  const cutoffCell = sheet.getRange(row, 7);
-  if (!cutoffCell.getValue()) cutoffCell.setValue("19:00 IST").setHorizontalAlignment("center");
   const statusCell = sheet.getRange(row, 9);
   statusCell.setFormula(`=IF(H${row}="","",IF(NOW()>H${row}+IFERROR(TIMEVALUE(LEFT(G${row},5)),1),"OVERDUE",IF(H${row}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   sheet.getRange(row, 10).setValue(false);
@@ -1119,16 +1144,16 @@ function handleEdit(e) {
 
   // A. Auto Task ID in Task_Master when user edits rows 7 to 50
   if (name === CONFIG.SHEET_MASTER && row >= 7 && row <= 50) {
-    const id = String(sheet.getRange(row, 1).getValue() || '').trim();
-    const desc = String(sheet.getRange(row, 2).getValue() || '').trim();
-    const assignee = String(sheet.getRange(row, 3).getValue() || '').trim();
+    const rowValues = sheet.getRange(row, 1, 1, 7).getValues()[0];
+    const hasAnyInput = rowValues.some(v => String(v || '').trim() !== "");
+    const id = String(rowValues[0] || '').trim();
     
     // If row has any input at all and is not already a fully initialized task
-    if (id !== "" || desc !== "" || assignee !== "") {
+    if (hasAnyInput) {
       if (!id.match(/^ALLO-OPS-\d+$/i) || !sheet.getRange(row, 9).getFormula()) {
         autoGenerateTaskIdForRow_(sheet, row);
       }
-    } else if (id === "" && desc === "" && assignee === "") {
+    } else {
       // User emptied row -> Clean up row completely to avoid ghost rows
       sheet.getRange(row, 1, 1, 12).clearContent().clearFormat().clearDataValidations();
       applyAllSystemDropdowns();
