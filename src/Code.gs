@@ -402,9 +402,9 @@ function setupOverviewSheet(ss) {
     ["Priya Patel", "Customer Experience", "priya.cx@alloinnoware.com", "Customer Returns (RTO) & Damaged Goods Portal Lead", "Active", "Zendesk / Returns Portal Ticket ID", "Filter - Priya Patel"],
     ["Ankit Verma", "E-Commerce Ops", "ankit.ecommerce@alloinnoware.com", "Marketplace Settlement & Pricing Reconciliation Lead", "Active", "Finance Settlement Ticket ID", "Filter - Ankit Verma"],
     ["Sneha Kulkarni", "Supply Chain", "sneha.supplychain@alloinnoware.com", "Monthly 3PL Storage & Warehouse Audit Lead", "Active", "WMS Storage Audit Report Ticket ID", "Filter - Sneha Kulkarni"],
-    ["[New Employee Name]", "[Select Department]", "[Enter Email Address]", "Assign operational tasks via Task_Master", "Active", "Ticket ID / WhatsApp Proof", "Custom Filter View"],
-    ["[New Employee Name]", "[Select Department]", "[Enter Email Address]", "Assign operational tasks via Task_Master", "Active", "Ticket ID / WhatsApp Proof", "Custom Filter View"],
-    ["[New Employee Name]", "[Select Department]", "[Enter Email Address]", "Assign operational tasks via Task_Master", "Active", "Ticket ID / WhatsApp Proof", "Custom Filter View"]
+    ["", "Operations", "", "Assign operational tasks via Task_Master", "Active", "WhatsApp Group Snippet / Manifest AWB", ""],
+    ["", "Operations", "", "Assign operational tasks via Task_Master", "Active", "WhatsApp Group Snippet / Manifest AWB", ""],
+    ["", "Operations", "", "Assign operational tasks via Task_Master", "Active", "WhatsApp Group Snippet / Manifest AWB", ""]
   ];
   sheet.getRange(33, 1, empDirRows.length, empDirHeaders.length).setValues(empDirRows);
   sheet.getRange(33, 1, empDirRows.length, empDirHeaders.length).setVerticalAlignment("middle");
@@ -1024,7 +1024,7 @@ function setupTestLabSheet(ss) {
 function applyTaskRowValidations_(sheet, row) {
   if (!sheet || row < 3 || row > 50) return;
   const { teamMembers, directory } = getEmployeeDirectory_();
-  const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control"];
+  const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control", "Operations", "[Select Department]"];
   const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Monthly (30 Days)"];
   const cadenceDays = ["1", "7", "15", "30"];
   const cutoffs = ["17:00 IST", "18:00 IST", "19:00 IST", "20:00 IST"];
@@ -1051,7 +1051,7 @@ function applyAllSystemDropdowns() {
   const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
 
   const { teamMembers, directory } = getEmployeeDirectory_();
-  const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control"];
+  const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control", "Operations", "[Select Department]"];
   const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Monthly (30 Days)"];
   const cadenceDays = ["1", "7", "15", "30"];
   const cutoffs = ["17:00 IST", "18:00 IST", "19:00 IST", "20:00 IST"];
@@ -1159,7 +1159,8 @@ function applyAllSystemDropdowns() {
       "Finance Settlement Ticket ID",
       "WMS Storage Audit Report Ticket ID",
       "ERP / Order ID",
-      "Email Confirmation Snippet"
+      "Email Confirmation Snippet",
+      "Ticket ID / WhatsApp Proof"
     ], true).setAllowInvalid(true).build();
 
     // Column B (Assigned Department) for Rows 33-39
@@ -2841,5 +2842,16 @@ function debugCheckAllSheets() {
       console.log('My_Pending_Tasks Row 3: ' + disp[2][0] + ' | Status: ' + disp[2][4] + ' | Proof: ' + disp[2][5]);
     }
   });
+  const ov = ss.getSheetByName(CONFIG.SHEET_OVERVIEW);
+  if (ov) {
+    for (let row = 33; row <= 39; row++) {
+      const cell = ov.getRange(row, 2);
+      const rule = cell.getDataValidation();
+      const val = cell.getValue();
+      const disp = cell.getDisplayValue();
+      const cVals = rule ? rule.getCriteriaValues() : null;
+      console.log(`OV Row ${row} Col B: val='${val}', disp='${disp}', rule=${!!rule}, criteria=${JSON.stringify(cVals)}`);
+    }
+  }
   console.log('=== END AUDIT ===');
 }
