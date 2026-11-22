@@ -560,7 +560,7 @@ function setupManagerDashboardSheet(ss) {
 
   sheet.getRange(7, 4, 44, 1).setNumberFormat("dd/MM/yyyy");
   sheet.getRange(7, 6, 44, 1).insertCheckboxes();
-  sheet.getRange(7, 7, 44, 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
+  sheet.getRange(7, 7, 44, 1).clearDataValidations().setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
   const rangeE = sheet.getRange("E7:E50");
   const ruleOverdue = SpreadsheetApp.newConditionalFormatRule()
@@ -824,6 +824,9 @@ function applyAllSystemDropdowns() {
   }
 
   if (dashSheet) {
+    // Explicitly remove any legacy dropdown validation from Column G (Timestamp only!)
+    dashSheet.getRange("G7:G50").clearDataValidations();
+
     const valNotes = SpreadsheetApp.newDataValidation().requireValueInList(managerNotes, true).setAllowInvalid(true).build();
     dashSheet.getRange("H7:H50").setDataValidation(valNotes);
   }
