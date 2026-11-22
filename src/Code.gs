@@ -350,10 +350,8 @@ function setupTaskMasterSheet(ss) {
   sheet.getRange(3, 8, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy");
   sheet.getRange(3, 12, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
-  // Freeze Header Rows (1-2) and Task Identity Columns (A-B)
-  // Guarantees Task ID and Task Description remain permanently pinned to the left edge when scrolling horizontally!
+  // Freeze Header Rows (1-2) so headers remain permanently pinned on vertical scroll
   sheet.setFrozenRows(2);
-  sheet.setFrozenColumns(2);
 
   // Clear rows 7 to 50 so no phantom/dummy data appears until a real task is created
   sheet.getRange(7, 1, 44, 12).clearContent();
@@ -571,8 +569,8 @@ function setupManagerDashboardSheet(ss) {
   sheet.getRange("E2:F2").merge().setValue("🚨 ESCALATED TO FOUNDER").setBackground("#FEE2E2").setFontWeight("bold").setFontColor("#991B1B").setHorizontalAlignment("center");
   sheet.getRange("G2:I2").merge().setValue("ON-TIME COMPLETION %").setBackground(CONFIG.COLOR_ON_SCHEDULE_BG).setFontWeight("bold").setFontColor(CONFIG.COLOR_ON_SCHEDULE_TXT).setHorizontalAlignment("center");
 
-  // Dynamic Formulas for KPIs
-  sheet.getRange("A3:B3").merge().setValue('=COUNTA(Task_Master!A3:A)').setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center");
+  // Dynamic Formulas for KPIs (Uses COUNTIF with wildcard to count non-empty descriptions, ignoring blank formula cells!)
+  sheet.getRange("A3:B3").merge().setValue('=COUNTIF(Task_Master!B3:B, "?*")').setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center");
   sheet.getRange("C3").setValue('=COUNTIF(Task_Master!I3:I, "DUE TODAY")').setFontSize(16).setFontWeight("bold").setFontColor("#B45309").setHorizontalAlignment("center");
   sheet.getRange("D3").setValue('=COUNTIF(Task_Master!I3:I, "OVERDUE")').setFontSize(16).setFontWeight("bold").setFontColor("#DC2626").setHorizontalAlignment("center");
   sheet.getRange("E3:F3").merge().setValue('=COUNTIF(Task_Master!K3:K, TRUE)').setFontSize(16).setFontWeight("bold").setFontColor("#991B1B").setHorizontalAlignment("center");
@@ -608,8 +606,20 @@ function setupManagerDashboardSheet(ss) {
     );
   }
 
+  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  let activeMasterCount = 4;
+  if (masterSheet) {
+    const mData = masterSheet.getRange("A3:A50").getValues();
+    let cnt = 0;
+    for (let i = 0; i < mData.length; i++) {
+      if (String(mData[i][0] || '').trim() !== "") cnt++;
+    }
+    if (cnt > 0) activeMasterCount = cnt;
+  }
   sheet.getRange(7, 4, 44, 1).setNumberFormat("dd/MM/yyyy");
-  sheet.getRange(7, 6, 44, 1).insertCheckboxes();
+  if (activeMasterCount > 0) {
+    sheet.getRange(7, 6, activeMasterCount, 1).insertCheckboxes();
+  }
   sheet.getRange(7, 7, 44, 1).clearDataValidations().setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
   const rangeE = sheet.getRange("E7:E50");
@@ -854,6 +864,29 @@ function setupTestLabSheet(ss) {
   return sheet;
 }
 
+function applyTaskRowValidations_(sheet, row) {
+  if (!sheet || row < 3 || row > 50) return;
+  const teamMembers = ["Rohan Sharma", "Priya Patel", "Ankit Verma", "Sneha Kulkarni"];
+  const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control"];
+  const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Monthly (30 Days)"];
+  const cadenceDays = ["1", "7", "15", "30"];
+  const cutoffs = ["17:00 IST", "18:00 IST", "19:00 IST", "20:00 IST"];
+
+  const valAssignee = SpreadsheetApp.newDataValidation().requireValueInList(teamMembers, true).setAllowInvalid(true).build();
+  const valDept = SpreadsheetApp.newDataValidation().requireValueInList(departments, true).setAllowInvalid(true).build();
+  const valFreq = SpreadsheetApp.newDataValidation().requireValueInList(frequencies, true).setAllowInvalid(true).build();
+  const valCadence = SpreadsheetApp.newDataValidation().requireValueInList(cadenceDays, true).setAllowInvalid(true).build();
+  const valCutoff = SpreadsheetApp.newDataValidation().requireValueInList(cutoffs, true).setAllowInvalid(true).build();
+  const valDate = SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(true).build();
+
+  sheet.getRange(row, 3).setDataValidation(valAssignee);
+  sheet.getRange(row, 4).setDataValidation(valDept);
+  sheet.getRange(row, 5).setDataValidation(valFreq);
+  sheet.getRange(row, 6).setDataValidation(valCadence);
+  sheet.getRange(row, 7).setDataValidation(valCutoff);
+  sheet.getRange(row, 8).setDataValidation(valDate);
+}
+
 function applyAllSystemDropdowns() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
@@ -873,50 +906,91 @@ function applyAllSystemDropdowns() {
     "Resolved - awaiting portal update"
   ];
 
+  const valAssignee = SpreadsheetApp.newDataValidation().requireValueInList(teamMembers, true).setAllowInvalid(true).build();
+  const valDept = SpreadsheetApp.newDataValidation().requireValueInList(departments, true).setAllowInvalid(true).build();
+  const valFreq = SpreadsheetApp.newDataValidation().requireValueInList(frequencies, true).setAllowInvalid(true).build();
+  const valCadence = SpreadsheetApp.newDataValidation().requireValueInList(cadenceDays, true).setAllowInvalid(true).build();
+  const valCutoff = SpreadsheetApp.newDataValidation().requireValueInList(cutoffs, true).setAllowInvalid(true).build();
+  const valDate = SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(true).build();
+
+  // 1. Task_Master: Apply strictly to active rows, wipe clean all empty rows
   if (masterSheet) {
-    // Column C: Assignee Dropdown
-    const valAssignee = SpreadsheetApp.newDataValidation().requireValueInList(teamMembers, true).setAllowInvalid(true).build();
-    masterSheet.getRange("C3:C50").setDataValidation(valAssignee);
+    const data = masterSheet.getRange("A3:B50").getValues();
+    let lastActiveRow = 2; // Row before start
+    for (let i = 0; i < data.length; i++) {
+      const id = String(data[i][0] || '').trim();
+      const desc = String(data[i][1] || '').trim();
+      if (id !== "" || desc !== "") {
+        lastActiveRow = i + 3;
+      }
+    }
 
-    // Column D: Department Dropdown
-    const valDept = SpreadsheetApp.newDataValidation().requireValueInList(departments, true).setAllowInvalid(true).build();
-    masterSheet.getRange("D3:D50").setDataValidation(valDept);
+    if (lastActiveRow >= 3) {
+      const numActive = lastActiveRow - 2;
+      masterSheet.getRange(3, 3, numActive, 1).setDataValidation(valAssignee);
+      masterSheet.getRange(3, 4, numActive, 1).setDataValidation(valDept);
+      masterSheet.getRange(3, 5, numActive, 1).setDataValidation(valFreq);
+      masterSheet.getRange(3, 6, numActive, 1).setDataValidation(valCadence);
+      masterSheet.getRange(3, 7, numActive, 1).setDataValidation(valCutoff);
+      masterSheet.getRange(3, 8, numActive, 1).setDataValidation(valDate);
+    }
 
-    // Column E: Frequency Dropdown
-    const valFreq = SpreadsheetApp.newDataValidation().requireValueInList(frequencies, true).setAllowInvalid(true).build();
-    masterSheet.getRange("E3:E50").setDataValidation(valFreq);
-
-    // Column F: Cadence (Days) Dropdown [1, 7, 15, 30] (also allows any custom number of days!)
-    const valCadence = SpreadsheetApp.newDataValidation().requireValueInList(cadenceDays, true).setAllowInvalid(true).build();
-    masterSheet.getRange("F3:F50").setDataValidation(valCadence);
-
-    // Column G: Cut-off Time Dropdown
-    const valCutoff = SpreadsheetApp.newDataValidation().requireValueInList(cutoffs, true).setAllowInvalid(true).build();
-    masterSheet.getRange("G3:G50").setDataValidation(valCutoff);
-
-    // Column H: Date Validation (Interactive Calendar Picker on double click)
-    const valDate = SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(true).build();
-    masterSheet.getRange("H3:H50").setDataValidation(valDate);
+    // Clean up empty rows: wipe all floating dropdown arrows and checkboxes
+    if (lastActiveRow < 50) {
+      const numEmpty = 50 - lastActiveRow;
+      masterSheet.getRange(lastActiveRow + 1, 3, numEmpty, 6).clearDataValidations();
+      masterSheet.getRange(lastActiveRow + 1, 10, numEmpty, 2).removeCheckboxes().setValue("");
+    }
   }
 
+  // 2. My_Pending_Tasks: Filter on D1, validate active rows, clear empty rows
   if (pendingSheet) {
     const filterList = ["All Team Members", ...teamMembers];
     const valFilter = SpreadsheetApp.newDataValidation().requireValueInList(filterList, true).setAllowInvalid(false).build();
     pendingSheet.getRange("D1").setDataValidation(valFilter);
 
-    const valAssignee = SpreadsheetApp.newDataValidation().requireValueInList(teamMembers, true).setAllowInvalid(true).build();
-    pendingSheet.getRange("C3:C50").setDataValidation(valAssignee);
+    const pendingData = pendingSheet.getRange("A3:A50").getValues();
+    let lastPendingRow = 2;
+    for (let i = 0; i < pendingData.length; i++) {
+      if (String(pendingData[i][0] || '').trim() !== "") {
+        lastPendingRow = i + 3;
+      }
+    }
+
+    if (lastPendingRow >= 3) {
+      pendingSheet.getRange(3, 3, lastPendingRow - 2, 1).setDataValidation(valAssignee);
+    }
+    if (lastPendingRow < 50) {
+      pendingSheet.getRange(lastPendingRow + 1, 1, 50 - lastPendingRow, 8).clearDataValidations();
+    }
   }
 
+  // 3. Manager_Dashboard: Clean Col G, validate Col H only on active tasks, clean checkboxes
   if (dashSheet) {
-    // Explicitly remove any legacy dropdown validation from Column G (Timestamp only!)
     dashSheet.getRange("G7:G50").clearDataValidations();
 
+    const dashData = dashSheet.getRange("A7:A50").getValues();
+    let lastDashRow = 6;
+    for (let i = 0; i < dashData.length; i++) {
+      if (String(dashData[i][0] || '').trim() !== "") {
+        lastDashRow = i + 7;
+      }
+    }
+
     const valNotes = SpreadsheetApp.newDataValidation().requireValueInList(managerNotes, true).setAllowInvalid(true).build();
-    dashSheet.getRange("H7:H50").setDataValidation(valNotes);
+    if (lastDashRow >= 7) {
+      const numDash = lastDashRow - 6;
+      dashSheet.getRange(7, 8, numDash, 1).setDataValidation(valNotes);
+      dashSheet.getRange(7, 6, numDash, 1).insertCheckboxes();
+    }
+    if (lastDashRow < 50) {
+      const numEmptyDash = 50 - lastDashRow;
+      dashSheet.getRange(lastDashRow + 1, 6, numEmptyDash, 1).removeCheckboxes().setValue("");
+      dashSheet.getRange(lastDashRow + 1, 8, numEmptyDash, 1).clearDataValidations().setValue("");
+    }
   }
 
-  Logger.log("Dropdown validations applied successfully across all sheets.");
+  Logger.log("Dynamic dropdown validations applied cleanly with zero floating arrows.");
 }
 
 // ----------------------------------------------------------------------------
@@ -978,8 +1052,23 @@ function autoGenerateTaskIdForRow_(sheet, row) {
   sheet.getRange(row, 1, 1, 12).setWrap(true).setVerticalAlignment("middle");
   sheet.setRowHeight(row, 34);
 
+  // Apply row dropdowns dynamically to this active row only
+  applyTaskRowValidations_(sheet, row);
+
+  // Sync Manager Dashboard for this new row
+  const ss = sheet.getParent();
+  const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+  if (dashSheet) {
+    const dashRow = row + 4; // Row 7 in Master maps to Row 11 in Dashboard
+    dashSheet.getRange(dashRow, 6).insertCheckboxes().setValue(false);
+    const valNotes = SpreadsheetApp.newDataValidation().requireValueInList([
+      "Reviewing with staff", "Awaiting courier API sync", "Warehouse spot check in progress", "Vendor contacted for delay", "Resolved - awaiting portal update"
+    ], true).setAllowInvalid(true).build();
+    dashSheet.getRange(dashRow, 8).setDataValidation(valNotes);
+  }
+
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast(`✨ Generated ${nextId} for Row ${row}!`, "Auto Task ID Created", 3);
+    SpreadsheetApp.getActiveSpreadsheet().toast(`✨ Generated ${nextId} with dynamic dropdowns for Row ${row}!`, "Auto Task ID Created", 3);
   } catch (err) {}
 }
 
@@ -995,6 +1084,29 @@ function handleEdit(e) {
     const desc = String(e.range.getValue() || '').trim();
     if (desc !== "") {
       autoGenerateTaskIdForRow_(sheet, row);
+    } else {
+      // User emptied Task Description -> Clean up row completely to avoid ghost rows
+      sheet.getRange(row, 1, 1, 12).clearContent().clearFormat().clearDataValidations();
+      applyAllSystemDropdowns();
+    }
+    return;
+  }
+
+  // A2. Frequency Auto-Sync: when user selects Frequency in Column E, sync Cadence & Cutoff
+  if (name === CONFIG.SHEET_MASTER && row >= 3 && row <= 50 && col === 5) {
+    const freq = String(e.range.getValue() || '').trim();
+    if (freq === "Daily (Mon-Sat)") {
+      sheet.getRange(row, 6).setValue(1);
+      sheet.getRange(row, 7).setValue("19:00 IST");
+    } else if (freq === "Weekly (7 Days)") {
+      sheet.getRange(row, 6).setValue(7);
+      sheet.getRange(row, 7).setValue("18:00 IST");
+    } else if (freq === "Fortnightly (15 Days)") {
+      sheet.getRange(row, 6).setValue(15);
+      sheet.getRange(row, 7).setValue("17:00 IST");
+    } else if (freq === "Monthly (30 Days)") {
+      sheet.getRange(row, 6).setValue(30);
+      sheet.getRange(row, 7).setValue("17:00 IST");
     }
     return;
   }
@@ -1205,10 +1317,15 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
     }
 
     if (targetRow > 0) {
-      const cadenceDays = parseInt(masterData[targetRow - 1][5]) || 1;
+      const cadenceDays = parseInt(masterData[targetRow - 1][5], 10) || 1;
       const nextDue = new Date(now.getTime());
       nextDue.setDate(nextDue.getDate() + cadenceDays);
       nextDue.setHours(0, 0, 0, 0); // Normalize to midnight
+
+      // Sunday Skip Rule: Advance to Monday if next due date lands on Sunday (Mon-Sat frequency)
+      if (nextDue.getDay() === 0) {
+        nextDue.setDate(nextDue.getDate() + 1);
+      }
 
       masterSheet.getRange(targetRow, 8).setValue(nextDue).setNumberFormat("dd/MM/yyyy");
       masterSheet.getRange(targetRow, 10).setValue(false); // Reset Manager Alert Sent
@@ -1933,7 +2050,6 @@ function applySmartAutoIdFormulas() {
   const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (!sheet) return;
   sheet.setFrozenRows(2);
-  sheet.setFrozenColumns(2);
   sheet.getRange(7, 1, 44, 12).clearContent();
   sheet.getRange("A3:A50").setHorizontalAlignment("left").setFontWeight("bold");
   sheet.getRange("B3:B50").setHorizontalAlignment("left");
