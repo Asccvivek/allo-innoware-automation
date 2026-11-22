@@ -353,7 +353,7 @@ function setupTaskMasterSheet(ss) {
   // Smart Dynamic Auto-Task ID & Urgency Formulas for Rows 7 to 30:
   // As soon as ANY cell in that row is touched (Description, Assignee, Cadence), Column A instantly displays the next Task ID!
   for (let r = 7; r <= 30; r++) {
-    sheet.getRange(r, 1).setFormula(`=IF(COUNTA(B${r}:H${r})>0, "ALLO-OPS-" & (100 + ${r} - 2), "")`).setFontWeight("bold").setHorizontalAlignment("center");
+    sheet.getRange(r, 1).setFormula(`=IF(COUNTA(B${r}:H${r})>0, "ALLO-OPS-" & (100 + ${r} - 2), "")`).setFontWeight("bold").setHorizontalAlignment("left");
     sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   }
 
@@ -918,7 +918,7 @@ function autoGenerateTaskIdForRow_(sheet, row) {
     }
   }
   const nextId = "ALLO-OPS-" + (maxNum + 1);
-  idCell.setValue(nextId).setFontWeight("bold").setHorizontalAlignment("center");
+  idCell.setValue(nextId).setFontWeight("bold").setHorizontalAlignment("left");
   
   // Pre-populate default cadence, cut-off, and due date for rapid setup
   const d0 = new Date();
@@ -1907,8 +1907,9 @@ function applySmartAutoIdFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (!sheet) return;
+  sheet.getRange("A3:A50").setHorizontalAlignment("left");
   for (let r = 7; r <= 30; r++) {
-    sheet.getRange(r, 1).setFormula(`=IF(COUNTA(B${r}:H${r})>0, "ALLO-OPS-" & (100 + ${r} - 2), "")`).setFontWeight("bold").setHorizontalAlignment("center");
+    sheet.getRange(r, 1).setFormula(`=IF(COUNTA(B${r}:H${r})>0, "ALLO-OPS-" & (100 + ${r} - 2), "")`).setFontWeight("bold").setHorizontalAlignment("left");
     sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   }
 }
@@ -2229,7 +2230,7 @@ function addNewRecurringTask() {
   const now = new Date();
   const d0 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
 
-  masterSheet.getRange(nextRow, 1).setValue(nextId).setFontWeight("bold").setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 1).setValue(nextId).setFontWeight("bold").setHorizontalAlignment("left");
   masterSheet.getRange(nextRow, 2).setValue(taskDesc);
   masterSheet.getRange(nextRow, 3).setValue("Rohan Sharma");
   masterSheet.getRange(nextRow, 4).setValue("Logistics");
