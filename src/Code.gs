@@ -13,7 +13,24 @@ const CONFIG = {
   COMPANY_NAME: "Allo Innoware",
   ARCHITECT_NAME: "Vivek Debnath",
   MANAGER_EMAIL: "vivekdvnath@gmail.com",       // Dedicated Operations Manager channel (Active testing inbox)
-  LEADERSHIP_EMAIL: "bidhudvnth@gmail.com", // Dedicated Founder / Leadership channel (Evaluators: change to your email to test)
+  MANAGER_CC: "viknthdv@gmail.com",
+  LEADERSHIP_EMAIL: "bidhudvnth@gmail.com",    // Dedicated Founder / Managing Director channel
+  LEADERSHIP_CC: "vivekdvnath@gmail.com",      // Ensure Founder escalation is directly received & verifiable by Vivek
+  
+  // Real Test Mail & Gmail Alias Inboxes for Each Employee
+  EMPLOYEE_EMAILS: {
+    "Rohan Sharma": "allo-rohan@mailinator.com",
+    "Priya Patel": "allo-priya@mailinator.com",
+    "Ankit Verma": "allo-ankit@mailinator.com",
+    "Sneha Kulkarni": "allo-sneha@mailinator.com"
+  },
+  EMPLOYEE_ALIASES: {
+    "Rohan Sharma": "vivekdvnath+rohan@gmail.com",
+    "Priya Patel": "vivekdvnath+priya@gmail.com",
+    "Ankit Verma": "vivekdvnath+ankit@gmail.com",
+    "Sneha Kulkarni": "vivekdvnath+sneha@gmail.com"
+  },
+
   ESCALATE_AFTER_HOURS: 4,                              // Grace period: Level 2 escalation fires 4h after manager alert if unacknowledged
   HARD_ESCALATE_AFTER_HOURS: 24,                        // Hard stop: Level 2 escalation fires 24h after manager alert even if acknowledged
   
@@ -90,7 +107,7 @@ function setAllTasksToPastOverdueDates() {
   if (dashSheet) {
     const dData = dashSheet.getDataRange().getValues();
     for (let r = 7; r <= Math.min(dData.length, 10); r++) {
-      dashSheet.getRange(r, 6).setValue(false); // Col F: Manager Ack Checkbox
+      dashSheet.getRange(r, 6).insertCheckboxes().setValue(false); // Col F: Manager Ack Checkbox
       dashSheet.getRange(r, 7).setValue("");     // Col G: Ack Timestamp
     }
   }
@@ -153,8 +170,11 @@ function buildAlloOperationsSystem(skipConfirmation) {
   // 5. Apply universal text wrapping, crisp slate borders, generous row heights & calibrated column widths
   applyPerfectColumnWidths();
 
-  // 6. Check for overdue tasks and dispatch Tier 1 Manager Alert digest
-  checkOverdueAndEscalate();
+  // 6. Dispatch Employee Task Digests to Test Mail Inboxes & Gmail Aliases
+  sendEmployeeTaskNotifications();
+
+  // 7. Simulate Unacknowledged Grace Expiry & Dispatch Tier 2 Leadership Escalation to Founder / MD
+  simulateTier2LeadershipEscalation();
 
   ss.setActiveSheet(ss.getSheetByName(CONFIG.SHEET_TEST_LAB));
   ss.toast("Allo Innoware Operations System V8.0 (Master Styling & Test Lab) Online!", "Build 100% Complete", 5);
@@ -519,31 +539,34 @@ function setupManagerDashboardSheet(ss) {
   sheet.clear();
   sheet.setTabColor("#F59E0B");
 
-  sheet.getRange("A1:H1").merge().setValue("EXECUTIVE CONTROL TOWER — RECURRING TASK COMPLIANCE")
+  sheet.getRange("A1:I1").merge().setValue("EXECUTIVE CONTROL TOWER & FOUNDER ESCALATION MONITOR")
     .setBackground(CONFIG.COLOR_NAVY).setFontColor(CONFIG.COLOR_GREEN).setFontWeight("bold").setFontSize(12).setHorizontalAlignment("center");
 
-  // Executive Scorecards (Row 2-3)
+  // Executive Scorecards (Row 2-3: Total, Pending Today, Overdue, Founder Escalated, SLA Compliance)
   sheet.getRange("A2:B2").merge().setValue("TOTAL TASKS").setBackground("#F1F5F9").setFontWeight("bold").setHorizontalAlignment("center");
-  sheet.getRange("C2:D2").merge().setValue("PENDING TODAY").setBackground(CONFIG.COLOR_DUE_BG).setFontWeight("bold").setFontColor(CONFIG.COLOR_DUE_TXT).setHorizontalAlignment("center");
-  sheet.getRange("E2:F2").merge().setValue("OVERDUE (SLA BREACH)").setBackground(CONFIG.COLOR_OVERDUE_BG).setFontWeight("bold").setFontColor(CONFIG.COLOR_OVERDUE_TXT).setHorizontalAlignment("center");
-  sheet.getRange("G2:H2").merge().setValue("ON-TIME COMPLETION %").setBackground(CONFIG.COLOR_ON_SCHEDULE_BG).setFontWeight("bold").setFontColor(CONFIG.COLOR_ON_SCHEDULE_TXT).setHorizontalAlignment("center");
+  sheet.getRange("C2").setValue("PENDING TODAY").setBackground(CONFIG.COLOR_DUE_BG).setFontWeight("bold").setFontColor(CONFIG.COLOR_DUE_TXT).setHorizontalAlignment("center");
+  sheet.getRange("D2").setValue("OVERDUE (SLA BREACH)").setBackground(CONFIG.COLOR_OVERDUE_BG).setFontWeight("bold").setFontColor(CONFIG.COLOR_OVERDUE_TXT).setHorizontalAlignment("center");
+  sheet.getRange("E2:F2").merge().setValue("🚨 ESCALATED TO FOUNDER").setBackground("#FEE2E2").setFontWeight("bold").setFontColor("#991B1B").setHorizontalAlignment("center");
+  sheet.getRange("G2:I2").merge().setValue("ON-TIME COMPLETION %").setBackground(CONFIG.COLOR_ON_SCHEDULE_BG).setFontWeight("bold").setFontColor(CONFIG.COLOR_ON_SCHEDULE_TXT).setHorizontalAlignment("center");
 
   // Dynamic Formulas for KPIs
   sheet.getRange("A3:B3").merge().setValue('=COUNTA(Task_Master!A3:A)').setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center");
-  sheet.getRange("C3:D3").merge().setValue('=COUNTIF(Task_Master!I3:I, "DUE TODAY")').setFontSize(16).setFontWeight("bold").setFontColor("#B45309").setHorizontalAlignment("center");
-  sheet.getRange("E3:F3").merge().setValue('=COUNTIF(Task_Master!I3:I, "OVERDUE")').setFontSize(16).setFontWeight("bold").setFontColor("#DC2626").setHorizontalAlignment("center");
+  sheet.getRange("C3").setValue('=COUNTIF(Task_Master!I3:I, "DUE TODAY")').setFontSize(16).setFontWeight("bold").setFontColor("#B45309").setHorizontalAlignment("center");
+  sheet.getRange("D3").setValue('=COUNTIF(Task_Master!I3:I, "OVERDUE")').setFontSize(16).setFontWeight("bold").setFontColor("#DC2626").setHorizontalAlignment("center");
+  sheet.getRange("E3:F3").merge().setValue('=COUNTIF(Task_Master!K3:K, TRUE)').setFontSize(16).setFontWeight("bold").setFontColor("#991B1B").setHorizontalAlignment("center");
   
   // Accurate KPI formula referencing Column I (SLA Status: On-Time / Delayed)
   const kpiFormula = '=IF(COUNTA(Task_Completion_Log!A3:A)=0, "100.0%", TEXT(COUNTIF(Task_Completion_Log!I3:I, "On-Time")/COUNTA(Task_Completion_Log!A3:A), "0.0%"))';
-  sheet.getRange("G3:H3").merge().setValue(kpiFormula).setFontSize(16).setFontWeight("bold").setFontColor("#15803D").setHorizontalAlignment("center");
+  sheet.getRange("G3:I3").merge().setValue(kpiFormula).setFontSize(16).setFontWeight("bold").setFontColor("#15803D").setHorizontalAlignment("center");
 
   // Manager Exception & Circuit Breaker Table
-  sheet.getRange("A5:H5").merge().setValue("MANAGER EXCEPTION & ACKNOWLEDGEMENT DESK (CIRCUIT BREAKER)")
+  sheet.getRange("A5:I5").merge().setValue("MANAGER EXCEPTION & FOUNDER ESCALATION CONTROL (CIRCUIT BREAKER)")
     .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(11);
 
   const headers = [
     "Task ID", "Task Description", "Assignee", "Due Date", 
-    "Urgency Status", "Manager Acknowledged", "Acknowledged At", "Manager Follow-up Notes"
+    "Urgency Status", "Manager Acknowledged", "Acknowledged At", "Manager Follow-up Notes",
+    "Executive Escalation Tier & Owner Status"
   ];
   sheet.getRange(6, 1, 1, headers.length).setValues([headers]);
   sheet.getRange(6, 1, 1, headers.length).setBackground("#334155").setFontColor("#FFFFFF").setFontWeight("bold");
@@ -556,6 +579,11 @@ function setupManagerDashboardSheet(ss) {
     sheet.getRange(r, 3).setFormula(`=IF(Task_Master!C${masterRow}="", "", Task_Master!C${masterRow})`);
     sheet.getRange(r, 4).setFormula(`=IF(Task_Master!H${masterRow}="", "", Task_Master!H${masterRow})`);
     sheet.getRange(r, 5).setFormula(`=IF(Task_Master!I${masterRow}="", "", Task_Master!I${masterRow})`);
+    
+    // Column I: Executive Escalation Tier & Owner Status Formula
+    sheet.getRange(r, 9).setFormula(
+      `=IF(Task_Master!A${masterRow}="", "", IF(Task_Master!K${masterRow}=TRUE, "🚨 TIER 2: ESCALATED TO FOUNDER", IF(Task_Master!I${masterRow}="OVERDUE", IF(F${r}=TRUE, "🛡️ PAUSED BY MANAGER (Circuit Breaker Active)", IF(Task_Master!J${masterRow}=TRUE, "🟡 TIER 1: MANAGER 4H GRACE", "⚠️ OVERDUE (Alert Pending)")), "🟢 TIER 0: ON SCHEDULE")))`
+    );
   }
 
   sheet.getRange(7, 4, 44, 1).setNumberFormat("dd/MM/yyyy");
@@ -573,8 +601,27 @@ function setupManagerDashboardSheet(ss) {
     .setBackground(CONFIG.COLOR_DUE_BG).setFontColor(CONFIG.COLOR_DUE_TXT).setBold(true)
     .setRanges([rangeE]).build();
 
+  // Column I Conditional Formatting Rules
+  const rangeI = sheet.getRange("I7:I50");
+  const ruleEscalated = SpreadsheetApp.newConditionalFormatRule()
+    .whenTextContains("ESCALATED TO FOUNDER")
+    .setBackground("#FEE2E2").setFontColor("#991B1B").setBold(true)
+    .setRanges([rangeI]).build();
+
+  const rulePaused = SpreadsheetApp.newConditionalFormatRule()
+    .whenTextContains("PAUSED BY MANAGER")
+    .setBackground("#DCFCE7").setFontColor("#166534").setBold(true)
+    .setRanges([rangeI]).build();
+
+  const ruleGrace = SpreadsheetApp.newConditionalFormatRule()
+    .whenTextContains("TIER 1")
+    .setBackground("#FEF3C7").setFontColor("#B45309").setBold(true)
+    .setRanges([rangeI]).build();
+
+  sheet.setConditionalFormatRules([ruleOverdue, ruleDueToday, ruleEscalated, rulePaused, ruleGrace]);
+
   // Crisp Slate Borders & Generous Spacing for Executive Dashboard
-  sheet.getRange("A2:H3").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("A2:I3").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
   sheet.getRange(6, 1, 5, headers.length).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
   sheet.setRowHeight(1, 46);
   sheet.setRowHeight(2, 30);
@@ -1389,11 +1436,11 @@ function sendLeadershipEscalationEmail(escalatedTasks) {
   try {
     MailApp.sendEmail({
       to: CONFIG.LEADERSHIP_EMAIL,
-      cc: CONFIG.MANAGER_EMAIL,
+      cc: `${CONFIG.MANAGER_EMAIL}, ${CONFIG.LEADERSHIP_CC}`,
       subject: `🚨🚨 [CRITICAL LEADERSHIP ESCALATION] ${escalatedTasks.length} Unresolved Operational Tasks — Allo Innoware`,
       htmlBody: htmlBody
     });
-    Logger.log("Leadership escalation email dispatched successfully to: " + CONFIG.LEADERSHIP_EMAIL);
+    Logger.log("Leadership escalation email dispatched successfully to: " + CONFIG.LEADERSHIP_EMAIL + " (CC: " + CONFIG.MANAGER_EMAIL + ", " + CONFIG.LEADERSHIP_CC + ")");
     return true;
   } catch (e) {
     Logger.log("Failed to send Leadership escalation: " + e.message);
@@ -1755,6 +1802,7 @@ function applyPerfectColumnWidths() {
     dashSheet.setColumnWidth(6, 160); // Manager Acknowledged
     dashSheet.setColumnWidth(7, 180); // Acknowledged At
     dashSheet.setColumnWidth(8, 260); // Manager Follow-up Notes
+    dashSheet.setColumnWidth(9, 320); // Executive Escalation Tier & Owner Status
   }
 
   // Tab 6: Step-by-Step Test Lab (Generous Widths + Middle Alignment)
@@ -1802,6 +1850,8 @@ function onOpen() {
       .addItem("➕ 8. Add New Recurring Task (Interactive Prompt)", "addNewRecurringTask")
       .addItem("⚡ 9. Simulate Overdue for Testing (Sets ALLO-OPS-101 to Yesterday)", "simulateOverdueForTesting")
       .addItem("🚨 10. Load Full Overdue Test Suite (Past 1d, 7d, 15d, 30d)", "setAllTasksToPastOverdueDates")
+      .addItem("📧 11. Send Employee Task Reminders (Mailinator & Aliases)", "sendEmployeeTaskNotifications")
+      .addItem("🚨 12. Simulate Unacknowledged Grace Expiry & Trigger Owner Escalation", "simulateTier2LeadershipEscalation")
       .addToUi();
   } catch (e) {
     Logger.log("onOpen UI initialization: " + e.message);
@@ -1889,12 +1939,164 @@ function setAllTasksToPastOverdueDates() {
   if (dashSheet) {
     const dData = dashSheet.getDataRange().getValues();
     for (let r = 7; r <= Math.min(dData.length, 10); r++) {
-      dashSheet.getRange(r, 6).setValue(false); // Col F: Manager Ack Checkbox
+      dashSheet.getRange(r, 6).insertCheckboxes().setValue(false); // Col F: Manager Ack Checkbox
       dashSheet.getRange(r, 7).setValue("");     // Col G: Ack Timestamp
     }
   }
 
   ss.toast("All 4 tasks set to past dates (-1d, -7d, -15d, -30d). Statuses are now OVERDUE across all cadences! Now run Menu Option 3 to test Manager Alert email.", "Overdue Suite Loaded", 7);
+}
+
+/**
+ * 1-Click Employee Notification Dispatch Engine
+ * Sends personalized task digests to employees via Mailinator inboxes and Gmail aliases
+ */
+function sendEmployeeTaskNotifications() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (!masterSheet) return;
+
+  const data = masterSheet.getDataRange().getValues();
+  const employeeTasks = {};
+
+  for (let i = 2; i < data.length; i++) {
+    const taskId = data[i][0];
+    const taskDesc = data[i][1];
+    const assignee = data[i][2];
+    const dueDate = data[i][7];
+    const urgency = data[i][8];
+    const cutoff = data[i][6];
+
+    if (!taskId || !assignee || !dueDate) continue;
+
+    if (!employeeTasks[assignee]) {
+      employeeTasks[assignee] = [];
+    }
+
+    employeeTasks[assignee].push({
+      taskId: taskId,
+      taskDesc: taskDesc,
+      dueDate: dueDate instanceof Date ? Utilities.formatDate(dueDate, "Asia/Kolkata", "dd/MM/yyyy") : String(dueDate),
+      cutoff: cutoff,
+      urgency: urgency
+    });
+  }
+
+  let dispatchedCount = 0;
+  for (const [employee, tasks] of Object.entries(employeeTasks)) {
+    const testMail = CONFIG.EMPLOYEE_EMAILS ? CONFIG.EMPLOYEE_EMAILS[employee] : null;
+    const aliasMail = CONFIG.EMPLOYEE_ALIASES ? CONFIG.EMPLOYEE_ALIASES[employee] : null;
+    if (!testMail) continue;
+
+    let rowsHtml = "";
+    tasks.forEach(t => {
+      const badgeColor = t.urgency === "OVERDUE" ? "#DC2626" : (t.urgency === "DUE TODAY" ? "#D97706" : "#16A34A");
+      rowsHtml += `<tr>
+        <td style="padding: 10px; border: 1px solid #E2E8F0; font-weight: bold; color: #1E293B;">${t.taskId}</td>
+        <td style="padding: 10px; border: 1px solid #E2E8F0;">${t.taskDesc}</td>
+        <td style="padding: 10px; border: 1px solid #E2E8F0;">${t.dueDate} (${t.cutoff})</td>
+        <td style="padding: 10px; border: 1px solid #E2E8F0; font-weight: bold; color: ${badgeColor};">${t.urgency}</td>
+      </tr>`;
+    });
+
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 650px; margin: auto; border: 1px solid #CBD5E1; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #1E293B; padding: 20px; text-align: center;">
+          <h2 style="color: #A6CE38; margin: 0;">ALLO INNOWARE • TEAM ACTION DESK</h2>
+          <p style="color: #F8FAFC; margin: 5px 0 0 0; font-size: 13px;">DAILY RECURRING TASK DIGEST FOR ${employee.toUpperCase()}</p>
+        </div>
+        <div style="padding: 24px; background-color: #FFFFFF;">
+          <p style="font-size: 15px; color: #1E293B;">Hello <strong>${employee}</strong>,</p>
+          <p style="font-size: 14px; color: #475569;">Here is your current operational action list. Please open your <strong>My_Pending_Tasks</strong> sheet, enter your Ticket ID or WhatsApp update link, and tick <em>Mark Complete</em> once done:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 13px;">
+            <thead>
+              <tr style="background-color: #F1F5F9; text-align: left;">
+                <th style="padding: 10px; border: 1px solid #E2E8F0;">Task ID</th>
+                <th style="padding: 10px; border: 1px solid #E2E8F0;">Task Description</th>
+                <th style="padding: 10px; border: 1px solid #E2E8F0;">Target Due Date</th>
+                <th style="padding: 10px; border: 1px solid #E2E8F0;">Current Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          <div style="background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 12px; margin: 18px 0; font-size: 13px; color: #1E40AF;">
+            <strong>Operating Instructions:</strong> Open tab <em>'My_Pending_Tasks'</em>, select your name from cell D1 dropdown to isolate your tasks, and enter your Ticket ID or WhatsApp link in Column F before checking Column H.
+          </div>
+        </div>
+        <div style="background-color: #F8FAFC; padding: 14px; text-align: center; font-size: 12px; color: #94A3B8; border-top: 1px solid #E2E8F0;">
+          Allo Innoware Automated Operations System • Built by Vivek Debnath
+        </div>
+      </div>
+    `;
+
+    try {
+      MailApp.sendEmail({
+        to: testMail,
+        cc: aliasMail,
+        subject: `📋 [Allo Innoware Action Required] ${tasks.length} Assigned Task(s) for ${employee}`,
+        htmlBody: htmlBody
+      });
+      Logger.log(`Employee task digest dispatched to ${employee} at ${testMail} (CC: ${aliasMail})`);
+      dispatchedCount++;
+    } catch (e) {
+      Logger.log(`Failed to send email to ${employee}: ` + e.message);
+    }
+  }
+
+  ss.toast(`Dispatched ${dispatchedCount} employee task notifications to Mailinator inboxes & Gmail aliases!`, "Employee Alerts Sent", 6);
+}
+
+/**
+ * 1-Click Simulation of Unacknowledged Grace Expiry & Tier 2 Founder Escalation
+ * Simulates that Manager was alerted 5 hours ago (exceeding 4h grace) and failed to acknowledge.
+ * Immediately triggers sendLeadershipEscalationEmail() to Founder & sets Column K to TRUE!
+ */
+function simulateTier2LeadershipEscalation() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+  if (!masterSheet) return;
+
+  const now = new Date();
+  const fiveHoursAgo = new Date(now.getTime() - (5 * 36e5)); // Exceeds 4h grace!
+
+  // Reset acknowledgment on Manager Dashboard for overdue tasks (simulating manager ignored/did not respond)
+  if (dashSheet) {
+    const dData = dashSheet.getDataRange().getValues();
+    for (let r = 7; r <= Math.min(dData.length, 10); r++) {
+      dashSheet.getRange(r, 6).insertCheckboxes().setValue(false); // Manager Acknowledged = FALSE
+      dashSheet.getRange(r, 7).setValue("");     // Timestamp empty
+    }
+  }
+
+  // Set Manager Alert Sent = TRUE, Timestamp = 5 hours ago, Leadership Escalated = FALSE on overdue tasks
+  const mData = masterSheet.getDataRange().getValues();
+  let candidateRows = [];
+
+  for (let r = 2; r < mData.length; r++) {
+    const status = mData[r][8];
+    if (status === "OVERDUE") {
+      masterSheet.getRange(r + 1, 10).setValue(true);  // Manager Alert Sent = TRUE
+      masterSheet.getRange(r + 1, 11).setValue(false); // Reset escalation flag so it fires now
+      masterSheet.getRange(r + 1, 12).setValue(fiveHoursAgo).setNumberFormat("dd/MM/yyyy HH:mm:ss");
+      candidateRows.push(r + 1);
+    }
+  }
+
+  if (candidateRows.length === 0) {
+    // If no overdue tasks, make ALLO-OPS-102 overdue first
+    masterSheet.getRange("H4").setValue(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 0, 0, 0, 0)).setNumberFormat("dd/MM/yyyy");
+    masterSheet.getRange(4, 10).setValue(true);
+    masterSheet.getRange(4, 11).setValue(false);
+    masterSheet.getRange(4, 12).setValue(fiveHoursAgo).setNumberFormat("dd/MM/yyyy HH:mm:ss");
+  }
+
+  // Now trigger the core escalation engine!
+  checkOverdueAndEscalate();
+
+  ss.toast("🚨 Simulated 4h Grace Expiry! Unacknowledged tasks have been escalated to the Founder / Managing Director!", "Tier 2 Escalation Dispatched", 8);
 }
 
 function addNewRecurringTask() {
