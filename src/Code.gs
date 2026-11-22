@@ -1079,15 +1079,28 @@ function handleEdit(e) {
   const row = e.range.getRow();
   const col = e.range.getColumn();
 
-  // A. Auto Task ID in Task_Master when Task Description (Col B) is typed
-  if (name === CONFIG.SHEET_MASTER && row >= 7 && row <= 50 && col === 2) {
-    const desc = String(e.range.getValue() || '').trim();
-    if (desc !== "") {
+  // A. Auto Task ID in Task_Master when user enters Task Description (Col B), Assignee (Col C), or Task ID (Col A)
+  if (name === CONFIG.SHEET_MASTER && row >= 7 && row <= 50 && (col === 1 || col === 2 || col === 3)) {
+    const desc = String(sheet.getRange(row, 2).getValue() || '').trim();
+    const assignee = String(sheet.getRange(row, 3).getValue() || '').trim();
+    const id = String(sheet.getRange(row, 1).getValue() || '').trim();
+    
+    if (desc !== "" || assignee !== "" || id !== "") {
       autoGenerateTaskIdForRow_(sheet, row);
-    } else {
-      // User emptied Task Description -> Clean up row completely to avoid ghost rows
+    } else if (desc === "" && assignee === "" && id === "") {
+      // User emptied row -> Clean up row completely to avoid ghost rows
       sheet.getRange(row, 1, 1, 12).clearContent().clearFormat().clearDataValidations();
       applyAllSystemDropdowns();
+    }
+    return;
+  }
+
+  // Manager Dashboard Protection & Guidance:
+  if (name === CONFIG.SHEET_DASHBOARD && row >= 11 && col <= 5) {
+    const val = String(e.range.getValue() || '').trim();
+    if (val !== "") {
+      e.range.setValue(""); // Protect formula link
+      SpreadsheetApp.getActiveSpreadsheet().toast("💡 As Manager, please use menu: 'Allo Innoware Ops > ➕ 8. Manager Tool: Assign New Recurring Task to Employee' to create tasks for any team member!", "Manager Task Creator", 6);
     }
     return;
   }
@@ -2087,7 +2100,7 @@ function onOpen() {
       .addItem("⏰ 5. Setup Automated Background Triggers (Hourly & 8 AM)", "setupTriggers")
       .addItem("👥 6. Apply All Dropdowns & Validations", "applyAllSystemDropdowns")
       .addItem("📏 7. Auto-Fit & Stretch All Columns", "applyPerfectColumnWidths")
-      .addItem("➕ 8. Add New Recurring Task (Interactive Prompt)", "addNewRecurringTask")
+      .addItem("➕ 8. Manager Tool: Assign New Recurring Task to Employee", "addNewRecurringTask")
       .addItem("⚡ 9. Simulate Overdue for Testing (Sets ALLO-OPS-101 to Yesterday)", "simulateOverdueForTesting")
       .addItem("🚨 10. Load Full Overdue Test Suite (Past 1d, 7d, 15d, 30d)", "setAllTasksToPastOverdueDates")
       .addItem("📧 11. Send Employee Task Reminders (Mailinator & Aliases)", "sendEmployeeTaskNotifications")
@@ -2341,8 +2354,10 @@ function simulateTier2LeadershipEscalation() {
 
 function addNewRecurringTask() {
   const ui = SpreadsheetApp.getUi();
+  
+  // Step 1: Task Description
   const respDesc = ui.prompt(
-    "Allo Innoware • Add New Recurring Task",
+    "Allo Innoware • Manager Task Assignment Wizard (Step 1 of 3)",
     "Enter the Task Description (e.g. 'Amazon BuyBox Price Monitoring'):",
     ui.ButtonSet.OK_CANCEL
   );
@@ -2352,6 +2367,66 @@ function addNewRecurringTask() {
   if (!taskDesc) {
     ui.alert("Task Description cannot be empty.");
     return;
+  }
+
+  // Step 2: Assignee Selection
+  const respAssignee = ui.prompt(
+    "Allo Innoware • Manager Task Assignment Wizard (Step 2 of 3)",
+    "Select the Team Member to assign this task:\n" +
+    "1 = Rohan Sharma (Logistics)\n" +
+    "2 = Priya Patel (Customer Experience)\n" +
+    "3 = Ankit Verma (E-Commerce Ops)\n" +
+    "4 = Sneha Kulkarni (Supply Chain)\n\n" +
+    "Enter 1, 2, 3, or 4 (or employee name):",
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (respAssignee.getSelectedButton() !== ui.Button.OK) return;
+  const assigneeChoice = respAssignee.getResponseText().trim();
+
+  let assigneeName = "Rohan Sharma";
+  let deptName = "Logistics";
+  if (assigneeChoice === "2" || assigneeChoice.toLowerCase().includes("priya")) {
+    assigneeName = "Priya Patel";
+    deptName = "Customer Experience";
+  } else if (assigneeChoice === "3" || assigneeChoice.toLowerCase().includes("ankit")) {
+    assigneeName = "Ankit Verma";
+    deptName = "E-Commerce Ops";
+  } else if (assigneeChoice === "4" || assigneeChoice.toLowerCase().includes("sneha")) {
+    assigneeName = "Sneha Kulkarni";
+    deptName = "Supply Chain";
+  }
+
+  // Step 3: Recurrence Frequency Selection
+  const respFreq = ui.prompt(
+    "Allo Innoware • Manager Task Assignment Wizard (Step 3 of 3)",
+    "Select the Recurrence Cadence for " + assigneeName + ":\n" +
+    "1 = Daily (Mon-Sat, 1 Day) [Cut-off: 19:00 IST]\n" +
+    "2 = Weekly (7 Days) [Cut-off: 18:00 IST]\n" +
+    "3 = Fortnightly (15 Days) [Cut-off: 17:00 IST]\n" +
+    "4 = Monthly (30 Days) [Cut-off: 17:00 IST]\n\n" +
+    "Enter 1, 2, 3, or 4:",
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (respFreq.getSelectedButton() !== ui.Button.OK) return;
+  const freqChoice = respFreq.getResponseText().trim();
+
+  let freqName = "Daily (Mon-Sat)";
+  let cadenceDays = 1;
+  let cutoffTime = "19:00 IST";
+  if (freqChoice === "2") {
+    freqName = "Weekly (7 Days)";
+    cadenceDays = 7;
+    cutoffTime = "18:00 IST";
+  } else if (freqChoice === "3") {
+    freqName = "Fortnightly (15 Days)";
+    cadenceDays = 15;
+    cutoffTime = "17:00 IST";
+  } else if (freqChoice === "4") {
+    freqName = "Monthly (30 Days)";
+    cadenceDays = 30;
+    cutoffTime = "17:00 IST";
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2387,11 +2462,11 @@ function addNewRecurringTask() {
 
   masterSheet.getRange(nextRow, 1).setValue(nextId).setFontWeight("bold").setHorizontalAlignment("left");
   masterSheet.getRange(nextRow, 2).setValue(taskDesc);
-  masterSheet.getRange(nextRow, 3).setValue("Rohan Sharma");
-  masterSheet.getRange(nextRow, 4).setValue("Logistics");
-  masterSheet.getRange(nextRow, 5).setValue("Daily (Mon-Sat)");
-  masterSheet.getRange(nextRow, 6).setValue(1).setHorizontalAlignment("center");
-  masterSheet.getRange(nextRow, 7).setValue("19:00 IST").setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 3).setValue(assigneeName);
+  masterSheet.getRange(nextRow, 4).setValue(deptName);
+  masterSheet.getRange(nextRow, 5).setValue(freqName);
+  masterSheet.getRange(nextRow, 6).setValue(cadenceDays).setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 7).setValue(cutoffTime).setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 8).setValue(d0).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 9).setFormula(`=IF(H${nextRow}="","",IF(NOW()>H${nextRow}+IFERROR(TIMEVALUE(LEFT(G${nextRow},5)),1),"OVERDUE",IF(H${nextRow}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 10).setValue(false);
@@ -2402,6 +2477,7 @@ function addNewRecurringTask() {
   masterSheet.getRange(nextRow, 1, 1, 12).setWrap(true).setVerticalAlignment("middle");
   masterSheet.setRowHeight(nextRow, 34);
 
+  applyTaskRowValidations_(masterSheet, nextRow);
   applyAllSystemDropdowns();
 
   const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
@@ -2410,7 +2486,7 @@ function addNewRecurringTask() {
     filterPendingDeskByEmployee(pendingSheet, sel);
   }
 
-  ss.toast(`Successfully created ${nextId}: "${taskDesc}"! Available on My_Pending_Tasks.`, "Task Added", 5);
+  ss.toast(`✨ Successfully assigned ${nextId}: "${taskDesc}" to ${assigneeName} (${deptName})! Synced across all desks.`, "Manager Task Created", 6);
 }
 
 function openTestLabDesk() {
