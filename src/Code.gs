@@ -755,6 +755,10 @@ function applyAllSystemDropdowns() {
 
     const valFreq = SpreadsheetApp.newDataValidation().requireValueInList(frequencies, true).setAllowInvalid(true).build();
     masterSheet.getRange("E3:E50").setDataValidation(valFreq);
+
+    // Date Validation: Triggers the native Google Sheets interactive calendar pop-up picker on double-click!
+    const valDate = SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(true).build();
+    masterSheet.getRange("H3:H50").setDataValidation(valDate);
   }
 
   if (pendingSheet) {
@@ -1738,6 +1742,7 @@ function onOpen() {
       .addItem("👥 6. Apply All Dropdowns & Validations", "applyAllSystemDropdowns")
       .addItem("📏 7. Auto-Fit & Stretch All Columns", "applyPerfectColumnWidths")
       .addItem("➕ 8. Add New Recurring Task (Interactive Prompt)", "addNewRecurringTask")
+      .addItem("⚡ 9. Simulate Overdue for Testing (Sets ALLO-OPS-101 to Yesterday)", "simulateOverdueForTesting")
       .addToUi();
   } catch (e) {
     Logger.log("onOpen UI initialization: " + e.message);
@@ -1751,6 +1756,34 @@ function onOpen() {
 /**
  * 1-Click Interactive Modal to Add New Recurring Task (Guaranteed Zero-Friction)
  */
+
+/**
+ * 1-Click Testing Helper: Sets ALLO-OPS-101 Due Date to Yesterday so Evaluator can test Overdue Alert in 1 Click!
+ */
+function simulateOverdueForTesting() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (!masterSheet) return;
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+
+  masterSheet.getRange("H3").setValue(yesterday).setNumberFormat("dd/MM/yyyy");
+  masterSheet.getRange("J3").setValue(false); // Reset alert flag
+  masterSheet.getRange("K3").setValue(false); // Reset escalation flag
+  masterSheet.getRange("L3").setValue("");
+
+  // Refresh pending desk
+  const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
+  if (pendingSheet) {
+    const sel = pendingSheet.getRange("D1").getValue();
+    filterPendingDeskByEmployee(pendingSheet, sel);
+  }
+
+  ss.toast("ALLO-OPS-101 Due Date set to Yesterday! Status is now OVERDUE. Now run Option 3 to test Manager Alert email.", "Overdue Simulated", 6);
+}
+
 function addNewRecurringTask() {
   const ui = SpreadsheetApp.getUi();
   const respDesc = ui.prompt(
