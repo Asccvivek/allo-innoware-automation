@@ -22,6 +22,35 @@ $$\text{Task Cadence} \longrightarrow \text{Single-Point Action} \longrightarrow
 
 ---
 
+## 🏛️ System Architecture Flow Diagram
+
+![Allo Innoware System Architecture Flow Diagram](Allo_Innoware_System_Architecture_Diagram.png)
+
+---
+
+## 📊 Assessment Scope vs. Production Implementation (What Was Asked vs. What We Built)
+
+| Core Requirement | Baseline Brief Scope | Production-Grade System Delivered |
+| :--- | :--- | :--- |
+| **1. Recurring Cycle Logic** | Recalculate next due date for 4 static dummy tasks upon completion. | **Dynamic Cadence Engine:** Supports Daily (Mon–Sat), Weekly (7d), Fortnightly (15d), Monthly (30d), and custom cadences with zero formula drift. |
+| **2. Single-Point Action Desk** | Staff updates completion from a pending tasks sheet without sheet-hopping. | **Multi-User Isolated Desk (`My_Pending_Tasks`):** Configured with native private Filter Views so multi-department staff see only their tasks without colliding. |
+| **3. Non-Ticketing Proof Protocol** | Propose a practical method to capture daily tasks lacking a Jira ticket ID. | **Anti-Fraud Proof Gateway (`validateProof_`):** Accepts WhatsApp snippets, carrier manifests, or AWBs; strictly rejects blank entries, sub-3 char strings ("ok"), and self-referential IDs. |
+| **4. Same-Day Alert & Cut-off** | Alert manager on the same day when a task is not finished on time. | **IST Cut-Off Cron Engine:** Hourly time-driven trigger evaluates per-task cut-offs (e.g. 19:00 IST for Logistics, 18:00 IST for CX), turning status OVERDUE and dispatching alerts. |
+| **5. Manager Review & Escalation** | Capture manager review; escalate unresolved items to leadership. | **Manager SLA Circuit Breaker:** Checking `[x] Manager Acknowledged` freezes Level 2 Founder escalation up to 24h while logging review timestamps, preventing founder alert fatigue. |
+| **6. Audit Trail & Idempotency** | Track who completed what; prevent duplicate cycles or duplicate emails. | **Immutable Audit Log (`Task_Completion_Log`) & Concurrency Lock:** Script enforces `LockService` to prevent race conditions during simultaneous edits. |
+
+---
+
+## 🛡️ Beyond-the-Brief Enterprise Hardening (Production Additions)
+
+1. **Centralized Dynamic Employee Hub (`System_Overview_&_SLA` Section 8):** Zero hardcoded emails or assignees in script code. Adding an employee in Section 8 dynamically cascades across all workbook dropdowns, auto-populates departments, and routes alert notifications.
+2. **Automated Task Creator Wizard & IST Creation Audit:** Managers can assign new tasks either directly in `Task_Master` Row 7+ or via the custom UI dialog, auto-generating sequential IDs (`ALLO-OPS-105`), auto-mapping departments, and stamping creation timestamps and assigner email.
+3. **Historical Chain of Custody Preservation:** Active dashboard inputs reset cleanly upon cycle completion, but manager review timestamps and historical follow-up notes are permanently locked in `Task_Completion_Log`.
+4. **Built-in QA Verification Harness (`Step_by_Step_Test_Lab` & `Automated_Code_Checks`):** Full 8-test interactive QA lab (100% Pass Rate) and 16 automated unit/integration assertions verifying zero formula errors.
+5. **Self-Healing Dropdowns & Universal Typography:** Standardized dropdown validations, text wrapping, and row heights across Google Sheets' HTML5 canvas.
+
+---
+
 ## 🎛️ Live System Visual Walkthrough
 
 ### 1. Dedicated Step-by-Step Test Lab (`🧪 Step_by_Step_Test_Lab`)
