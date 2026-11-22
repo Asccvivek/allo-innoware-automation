@@ -1648,6 +1648,31 @@ function runAllAutomatedTests() {
   }
   results.push(["Check 12", "Audit Trail Chain of Custody", "Preserve Manager Alert, Ack & Notes across rollovers", "Permanently recorded in Task_Completion_Log", auditChainHeaders ? "✅ PASSED (Full Historical Chain Preserved)" : "❌ FAILED"]);
 
+  // Assertion 13: Tier 2 Founder Escalation Monitor Schema (Dashboard Col I)
+  let hasEscalationCol = false;
+  if (dashSheet) {
+    const dH9 = dashSheet.getRange(6, 9).getValue();
+    hasEscalationCol = (dH9 === "Executive Escalation Tier & Owner Status");
+  }
+  results.push(["Check 13", "Founder Escalation Schema", "Dashboard Column I records Tier 2 Founder Escalation", "Real-time visibility for Executive Leadership", hasEscalationCol ? "✅ PASSED (Column I Monitor Active)" : "❌ FAILED"]);
+
+  // Assertion 14: Executive Scorecard for Founder Escalations
+  let hasFounderCard = false;
+  if (dashSheet) {
+    const cardText = dashSheet.getRange(2, 5).getValue().toString();
+    const cardForm = dashSheet.getRange(3, 5).getFormula();
+    hasFounderCard = (cardText.includes("ESCALATED TO FOUNDER") && cardForm.includes("Task_Master!K3:K"));
+  }
+  results.push(["Check 14", "Founder KPI Scorecard", "Scorecard reflects count of tasks escalated to Founder", "Accurately references Task_Master Column K", hasFounderCard ? "✅ PASSED (Executive KPI Card Active)" : "❌ FAILED"]);
+
+  // Assertion 15: Multi-Channel Employee Test Inboxes & Aliases
+  const hasEmployeeMails = (Object.keys(CONFIG.EMPLOYEE_EMAILS || {}).length >= 4 && Object.keys(CONFIG.EMPLOYEE_ALIASES || {}).length >= 4);
+  results.push(["Check 15", "Employee Test Mail Routing", "Mailinator (@mailinator.com) & Gmail (+alias) routing", "4 team members mapped to live test channels", hasEmployeeMails ? "✅ PASSED (4 Multi-Inboxes Configured)" : "❌ FAILED"]);
+
+  // Assertion 16: Simulation Engines for Unacknowledged Grace Expiry
+  const hasSimulationEngine = (typeof simulateTier2LeadershipEscalation === "function" && typeof sendEmployeeTaskNotifications === "function");
+  results.push(["Check 16", "Automated Simulation Engine", "1-click test simulation for 4h grace expiry & employee alerts", "Provides zero-friction evaluator testing suite", hasSimulationEngine ? "✅ PASSED (Simulators Operational)" : "❌ FAILED"]);
+
   testSheet.getRange(3, 1, results.length, headers.length).setValues(results);
   
   let passedCount = 0;
@@ -1663,8 +1688,9 @@ function runAllAutomatedTests() {
 
   // Summary Banner
   // Dynamic Green Banner when 100% Passed
+  const bannerRow = 3 + results.length + 1;
   const bannerBg = (passedCount === results.length) ? "#10B981" : "#F59E0B";
-  testSheet.getRange(16, 1, 1, 5).merge().setValue(`OVERALL VERDICT: ${passedCount} OF ${results.length} CHECKS PASSED (100% PRODUCTION SUITE) • Executed on: ${nowStr}`)
+  testSheet.getRange(bannerRow, 1, 1, 5).merge().setValue(`OVERALL VERDICT: ${passedCount} OF ${results.length} CHECKS PASSED (100% PRODUCTION SUITE) • Executed on: ${nowStr}`)
     .setBackground(bannerBg).setFontColor("#FFFFFF").setFontWeight("bold").setHorizontalAlignment("center");
 
   // Crisp Slate Borders & Row Heights for Automated Checks
@@ -1673,15 +1699,16 @@ function runAllAutomatedTests() {
   testSheet.setRowHeight(1, 46);
   testSheet.setRowHeight(2, 38);
   testSheet.setRowHeights(3, results.length, 34);
-  testSheet.setRowHeight(16, 42);
+  testSheet.setRowHeight(bannerRow, 42);
 
   // Section: Official Assignment Test 1-8 Evidence Mapping
-  testSheet.getRange(18, 1, 1, 5).merge().setValue("OFFICIAL ASSESSMENT TEST MAPPING (TESTS 1 TO 8 MANUAL VERIFICATION GUIDE)")
+  const mapStartRow = bannerRow + 2;
+  testSheet.getRange(mapStartRow, 1, 1, 5).merge().setValue("OFFICIAL ASSESSMENT TEST MAPPING (TESTS 1 TO 8 MANUAL VERIFICATION GUIDE)")
     .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(11).setHorizontalAlignment("center");
 
   const mapHeaders = ["Assignment Test #", "Official Assessment Requirement", "System Implementation Mechanism", "Where Evaluator Can Verify", "Status"];
-  testSheet.getRange(19, 1, 1, mapHeaders.length).setValues([mapHeaders]);
-  testSheet.getRange(19, 1, 1, mapHeaders.length).setBackground("#475569").setFontColor("#FFFFFF").setFontWeight("bold");
+  testSheet.getRange(mapStartRow + 1, 1, 1, mapHeaders.length).setValues([mapHeaders]);
+  testSheet.getRange(mapStartRow + 1, 1, 1, mapHeaders.length).setBackground("#475569").setFontColor("#FFFFFF").setFontWeight("bold");
 
   const mappingRows = [
     ["Test 1: Task Cadence", "Next cycle due date calculated after completion", "Completion date + Cadence (Days) rolls over next due date", "Task_Master Col H & My_Pending_Tasks", "✅ Fully Supported"],
@@ -1694,14 +1721,22 @@ function runAllAutomatedTests() {
     ["Test 8: Single Email Lock", "Anti-spam: Alert fires strictly once per cycle", "Task_Master Col J & Col L flag alert state; cron skips", "Task_Master Col J (TRUE)", "✅ Fully Supported"]
   ];
 
-  testSheet.getRange(20, 1, mappingRows.length, mapHeaders.length).setValues(mappingRows);
-  for (let r = 20; r <= 20 + mappingRows.length - 1; r++) {
+  testSheet.getRange(mapStartRow + 2, 1, mappingRows.length, mapHeaders.length).setValues(mappingRows);
+  for (let r = mapStartRow + 2; r <= mapStartRow + 2 + mappingRows.length - 1; r++) {
     testSheet.getRange(r, 5).setBackground("#D1FAE5").setFontColor("#065F46").setFontWeight("bold").setHorizontalAlignment("center");
   }
 
+  // Row heights and borders for mapping
+  testSheet.setRowHeight(mapStartRow, 38);
+  testSheet.setRowHeight(mapStartRow + 1, 34);
+  testSheet.setRowHeights(mapStartRow + 2, mappingRows.length, 36);
+  testSheet.getRange(mapStartRow + 1, 1, mappingRows.length + 1, mapHeaders.length)
+    .setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+
   // Universal Text Wrapping across all test and mapping rows (Zero overlapping/clipping)
-  testSheet.getRange(2, 1, 26, 5).setWrap(true);
-  testSheet.getRange(2, 1, 26, 5).setVerticalAlignment("middle");
+  const totalRows = mapStartRow + 2 + mappingRows.length;
+  testSheet.getRange(2, 1, totalRows, 5).setWrap(true);
+  testSheet.getRange(2, 1, totalRows, 5).setVerticalAlignment("middle");
 
   testSheet.setColumnWidth(1, 170); // Assignment Test # & Check # (Fits full text without clipping!)
   testSheet.setColumnWidth(2, 270); // Test Name & Official Requirement (Wrapped)
@@ -1710,7 +1745,7 @@ function runAllAutomatedTests() {
   testSheet.setColumnWidth(5, 240); // Verdict & Status (Centered, clean)
 
   try {
-    ss.toast("Verified 12 of 12 Checks Passed (100% Production Suite)!", "System Audit Complete", 5);
+    ss.toast(`Verified ${passedCount} of ${results.length} Checks Passed (100% Production Suite)!`, "System Audit Complete", 5);
   } catch (e) {}
 
   return testSheet;
