@@ -12,7 +12,7 @@
 const CONFIG = {
   COMPANY_NAME: "Allo Innoware",
   ARCHITECT_NAME: "Vivek Debnath",
-  MANAGER_EMAIL: "viknthdv@gmail.com",       // Dedicated Operations Manager channel (Evaluators: change to your email to test)
+  MANAGER_EMAIL: "vivekdvnath@gmail.com",       // Dedicated Operations Manager channel (Active testing inbox)
   LEADERSHIP_EMAIL: "bidhudvnth@gmail.com", // Dedicated Founder / Leadership channel (Evaluators: change to your email to test)
   ESCALATE_AFTER_HOURS: 4,                              // Grace period: Level 2 escalation fires 4h after manager alert if unacknowledged
   HARD_ESCALATE_AFTER_HOURS: 24,                        // Hard stop: Level 2 escalation fires 24h after manager alert even if acknowledged
@@ -793,7 +793,7 @@ function applyAllSystemDropdowns() {
 
   const teamMembers = ["Rohan Sharma", "Priya Patel", "Ankit Verma", "Sneha Kulkarni"];
   const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control"];
-  const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (14 Days)", "Monthly (30 Days)"];
+  const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Fortnightly (14 Days)", "Monthly (30 Days)"];
   const managerNotes = [
     "Reviewing with staff", 
     "Awaiting courier API sync", 
@@ -1325,10 +1325,11 @@ function sendManagerOverdueEmail(overdueTasks) {
   try {
     MailApp.sendEmail({
       to: CONFIG.MANAGER_EMAIL,
+      cc: "viknthdv@gmail.com",
       subject: `🚨 [Tier 1 Alert] ${overdueTasks.length} Overdue Operational Tasks — Allo Innoware`,
       htmlBody: htmlBody
     });
-    Logger.log("Manager overdue email dispatched successfully to: " + CONFIG.MANAGER_EMAIL);
+    Logger.log("Manager overdue email dispatched successfully to: " + CONFIG.MANAGER_EMAIL + " (CC: viknthdv@gmail.com)");
     return true;
   } catch (e) {
     Logger.log("Failed to send Manager alert: " + e.message);
@@ -1385,6 +1386,7 @@ function sendLeadershipEscalationEmail(escalatedTasks) {
   try {
     MailApp.sendEmail({
       to: CONFIG.LEADERSHIP_EMAIL,
+      cc: CONFIG.MANAGER_EMAIL,
       subject: `🚨🚨 [CRITICAL LEADERSHIP ESCALATION] ${escalatedTasks.length} Unresolved Operational Tasks — Allo Innoware`,
       htmlBody: htmlBody
     });
