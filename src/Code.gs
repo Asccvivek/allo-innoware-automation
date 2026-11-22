@@ -350,10 +350,10 @@ function setupTaskMasterSheet(ss) {
   sheet.getRange(3, 8, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy");
   sheet.getRange(3, 12, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
-  // Zero-Latency Native Auto-Task ID & Urgency Formulas for Rows 7 to 30:
-  // The exact millisecond you type a Task Description in Column B, Column A instantly displays the next Task ID!
-  for (let r = 7; r <= 30; r++) {
-    sheet.getRange(r, 1).setFormula(`=IF(B${r}="","", "ALLO-OPS-" & (100 + ${r} - 2))`).setFontWeight("bold").setHorizontalAlignment("center");
+  // Explicitly Pre-Populated Sequential Auto-Task IDs for Rows 7 to 15:
+  // Zero confusion: Task IDs are immediately visible, bold, and ready for use on every row!
+  for (let r = 7; r <= 15; r++) {
+    sheet.getRange(r, 1).setValue("ALLO-OPS-" + (100 + r - 2)).setFontWeight("bold").setHorizontalAlignment("center");
     sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   }
 
@@ -1871,6 +1871,23 @@ function applyPerfectColumnWidths() {
 // ----------------------------------------------------------------------------
 // 8. CUSTOM MENU: 1-Click Operations Control Panel (Accident-Proof)
 // ----------------------------------------------------------------------------
+function populateAllTaskMasterIds() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (!sheet) return;
+  const ids = [
+    ["ALLO-OPS-105"],
+    ["ALLO-OPS-106"],
+    ["ALLO-OPS-107"],
+    ["ALLO-OPS-108"],
+    ["ALLO-OPS-109"],
+    ["ALLO-OPS-110"],
+    ["ALLO-OPS-111"],
+    ["ALLO-OPS-112"]
+  ];
+  sheet.getRange(7, 1, ids.length, 1).setValues(ids).setFontWeight("bold").setHorizontalAlignment("center");
+}
+
 function onOpen() {
   try {
     SpreadsheetApp.getUi()
