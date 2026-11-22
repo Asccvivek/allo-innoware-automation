@@ -95,6 +95,53 @@ function getNotificationRoutingConfig_() {
   };
 }
 
+/**
+ * Live In-Sheet Employee Directory & Notification Registry:
+ * - Dynamically reads team members, departments, and notification emails from '📌 System_Overview_&_SLA' (Rows 33-39).
+ * - Allows any manager or evaluator to add a new employee or update their email directly in Google Sheets!
+ */
+function getEmployeeDirectory_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const overviewSheet = ss ? ss.getSheetByName(CONFIG.SHEET_OVERVIEW) : null;
+  const directory = {};
+  const teamMembers = [];
+
+  if (overviewSheet && overviewSheet.getLastRow() >= 33) {
+    const data = overviewSheet.getRange("A33:E39").getValues();
+    for (let i = 0; i < data.length; i++) {
+      const name = String(data[i][0] || "").trim();
+      const dept = String(data[i][1] || "").trim();
+      const email = String(data[i][2] || "").trim();
+      const status = String(data[i][4] || "Active").trim();
+      if (name && name !== "" && !name.startsWith("[")) {
+        teamMembers.push(name);
+        directory[name] = {
+          name: name,
+          department: dept || "Operations",
+          email: email || (name.toLowerCase().replace(/\s+/g, ".") + "@alloinnoware.com"),
+          status: status || "Active"
+        };
+      }
+    }
+  }
+
+  // Fallback defaults if sheet table is empty or uninitialized
+  if (teamMembers.length === 0) {
+    const defaults = ["Rohan Sharma", "Priya Patel", "Ankit Verma", "Sneha Kulkarni"];
+    defaults.forEach(n => {
+      teamMembers.push(n);
+      directory[n] = {
+        name: n,
+        department: n === "Rohan Sharma" ? "Logistics" : (n === "Priya Patel" ? "Customer Experience" : (n === "Ankit Verma" ? "E-Commerce Ops" : "Supply Chain")),
+        email: CONFIG.EMPLOYEE_EMAILS ? CONFIG.EMPLOYEE_EMAILS[n] : (n.toLowerCase().replace(/\s+/g, ".") + "@alloinnoware.com"),
+        status: "Active"
+      };
+    });
+  }
+
+  return { directory: directory, teamMembers: teamMembers };
+}
+
 // ----------------------------------------------------------------------------
 // 0. ACTIVE TEST SUITE: Sets All 4 Tasks to Past Overdue Dates (-1d, -7d, -15d, -30d)
 // ----------------------------------------------------------------------------
@@ -339,6 +386,39 @@ function setupOverviewSheet(ss) {
   sheet.getRange("A25:G26").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
   sheet.getRange("A28:G29").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
 
+  // Section 8: In-Sheet Employee Directory & Notification Registry (Add & Connect Team Members)
+  sheet.getRange("A31:G31").merge().setValue("8. EMPLOYEE DIRECTORY & NOTIFICATION REGISTRY (ADD & CONFIGURE TEAM MEMBERS)")
+    .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10);
+
+  const empDirHeaders = [
+    "Employee Name", "Assigned Department", "Work Email Address (For Notifications)", 
+    "Role Description & Operating Scope", "Active Status", "Operational Proof Channel", "Desk Isolation View"
+  ];
+  sheet.getRange(32, 1, 1, empDirHeaders.length).setValues([empDirHeaders])
+    .setBackground("#475569").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center");
+
+  const empDirRows = [
+    ["Rohan Sharma", "Logistics", "rohan.logistics@alloinnoware.com", "Marketplace Dispatch & 3PL Logistics Lead", "Active", "WhatsApp Group Snippet / Manifest AWB", "Filter - Rohan Sharma"],
+    ["Priya Patel", "Customer Experience", "priya.cx@alloinnoware.com", "Customer Returns (RTO) & Damaged Goods Portal Lead", "Active", "Zendesk / Returns Portal Ticket ID", "Filter - Priya Patel"],
+    ["Ankit Verma", "E-Commerce Ops", "ankit.ecommerce@alloinnoware.com", "Marketplace Settlement & Pricing Reconciliation Lead", "Active", "Finance Settlement Ticket ID", "Filter - Ankit Verma"],
+    ["Sneha Kulkarni", "Supply Chain", "sneha.supplychain@alloinnoware.com", "Monthly 3PL Storage & Warehouse Audit Lead", "Active", "WMS Storage Audit Report Ticket ID", "Filter - Sneha Kulkarni"],
+    ["[New Employee Name]", "[Select Department]", "[Enter Email Address]", "Assign operational tasks via Task_Master", "Active", "Ticket ID / WhatsApp Proof", "Custom Filter View"],
+    ["[New Employee Name]", "[Select Department]", "[Enter Email Address]", "Assign operational tasks via Task_Master", "Active", "Ticket ID / WhatsApp Proof", "Custom Filter View"],
+    ["[New Employee Name]", "[Select Department]", "[Enter Email Address]", "Assign operational tasks via Task_Master", "Active", "Ticket ID / WhatsApp Proof", "Custom Filter View"]
+  ];
+  sheet.getRange(33, 1, empDirRows.length, empDirHeaders.length).setValues(empDirRows);
+  sheet.getRange(33, 1, empDirRows.length, empDirHeaders.length).setVerticalAlignment("middle");
+
+  // Highlight editable slots for new employees with soft yellow
+  sheet.getRange("A37:C39").setBackground(CONFIG.COLOR_YELLOW);
+
+  // Help Note for Adding New Employees
+  const empAddHelp = 
+    "• How to Add a New Employee: Type the new employee's name in Col A, Department in Col B, and their real email in Col C (Rows 37-39 above). The system dynamically syncs their name to the Assignee dropdowns across Task_Master and My_Pending_Tasks. Task notifications and digest alerts will route directly to their email without editing any script!";
+  sheet.getRange("A40:G40").merge().setValue(empAddHelp).setWrap(true).setBackground("#EFF6FF").setFontSize(9);
+
+  sheet.getRange("A31:G40").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+
   sheet.setRowHeight(1, 46);
   sheet.setRowHeight(2, 28);
   sheet.setRowHeight(4, 34);
@@ -357,14 +437,18 @@ function setupOverviewSheet(ss) {
   sheet.setRowHeight(26, 120);
   sheet.setRowHeight(28, 34);
   sheet.setRowHeight(29, 140);
+  sheet.setRowHeight(31, 34);
+  sheet.setRowHeight(32, 36);
+  sheet.setRowHeights(33, 7, 32);
+  sheet.setRowHeight(40, 56);
 
-  sheet.getRange(1, 1, 30, 7).setWrap(true).setVerticalAlignment("middle");
+  sheet.getRange(1, 1, 41, 7).setWrap(true).setVerticalAlignment("middle");
 
   sheet.setColumnWidth(1, 200);
   sheet.setColumnWidth(2, 360);
-  sheet.setColumnWidth(3, 220);
+  sheet.setColumnWidth(3, 240);
   sheet.setColumnWidth(4, 360);
-  sheet.setColumnWidth(5, 200);
+  sheet.setColumnWidth(5, 180);
   sheet.setColumnWidth(6, 240);
   sheet.setColumnWidth(7, 240);
   return sheet;
@@ -939,7 +1023,7 @@ function setupTestLabSheet(ss) {
 
 function applyTaskRowValidations_(sheet, row) {
   if (!sheet || row < 3 || row > 50) return;
-  const teamMembers = ["Rohan Sharma", "Priya Patel", "Ankit Verma", "Sneha Kulkarni"];
+  const { teamMembers, directory } = getEmployeeDirectory_();
   const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control"];
   const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Monthly (30 Days)"];
   const cadenceDays = ["1", "7", "15", "30"];
@@ -966,7 +1050,7 @@ function applyAllSystemDropdowns() {
   const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
   const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
 
-  const teamMembers = ["Rohan Sharma", "Priya Patel", "Ankit Verma", "Sneha Kulkarni"];
+  const { teamMembers, directory } = getEmployeeDirectory_();
   const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control"];
   const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Monthly (30 Days)"];
   const cadenceDays = ["1", "7", "15", "30"];
@@ -1263,7 +1347,10 @@ function handleEdit(e) {
   // A1. Assignee Auto-Sync: when user selects Assignee in Column C, auto-fill Department (Col D)
   if (name === CONFIG.SHEET_MASTER && row >= 3 && row <= 50 && col === 3) {
     const assignee = String(e.range.getValue() || '').trim();
-    if (assignee === "Rohan Sharma") {
+    const { directory } = getEmployeeDirectory_();
+    if (directory[assignee] && directory[assignee].department) {
+      sheet.getRange(row, 4).setValue(directory[assignee].department);
+    } else if (assignee === "Rohan Sharma") {
       sheet.getRange(row, 4).setValue("Logistics");
     } else if (assignee === "Priya Patel") {
       sheet.getRange(row, 4).setValue("Customer Experience");
@@ -1272,6 +1359,12 @@ function handleEdit(e) {
     } else if (assignee === "Sneha Kulkarni") {
       sheet.getRange(row, 4).setValue("Supply Chain");
     }
+    applyAllSystemDropdowns();
+    return;
+  }
+
+  // A1b. Employee Directory Live Edit on System_Overview_&_SLA: re-sync dropdowns across all sheets
+  if (name === CONFIG.SHEET_OVERVIEW && row >= 33 && row <= 39) {
     applyAllSystemDropdowns();
     return;
   }
@@ -2443,10 +2536,10 @@ function sendEmployeeTaskNotifications() {
   }
 
   let dispatchedCount = 0;
+  const { directory } = getEmployeeDirectory_();
   for (const [employee, tasks] of Object.entries(employeeTasks)) {
-    const testMail = CONFIG.EMPLOYEE_EMAILS ? CONFIG.EMPLOYEE_EMAILS[employee] : null;
-    const aliasMail = CONFIG.EMPLOYEE_ALIASES ? CONFIG.EMPLOYEE_ALIASES[employee] : null;
-    if (!testMail) continue;
+    const targetEmail = (directory[employee] && directory[employee].email) ? directory[employee].email : (CONFIG.EMPLOYEE_EMAILS ? CONFIG.EMPLOYEE_EMAILS[employee] : null);
+    if (!targetEmail || !targetEmail.includes("@")) continue;
 
     let rowsHtml = "";
     tasks.forEach(t => {
@@ -2493,12 +2586,12 @@ function sendEmployeeTaskNotifications() {
 
     try {
       MailApp.sendEmail({
-        to: testMail,
-        cc: aliasMail,
+        to: targetEmail,
+        // cc: dynamic CC if needed
         subject: `📋 [Allo Innoware Action Required] ${tasks.length} Assigned Task(s) for ${employee}`,
         htmlBody: htmlBody
       });
-      Logger.log(`Employee task digest dispatched to ${employee} at ${testMail} (CC: ${aliasMail})`);
+      Logger.log(`Employee task digest dispatched to ${employee} at ${targetEmail}`);
       dispatchedCount++;
     } catch (e) {
       Logger.log(`Failed to send email to ${employee}: ` + e.message);
