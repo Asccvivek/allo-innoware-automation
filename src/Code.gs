@@ -1149,7 +1149,34 @@ function applyAllSystemDropdowns() {
     }
   }
 
-  Logger.log("Dynamic dropdown validations applied cleanly with zero floating arrows.");
+  // 4. Section 8: In-Sheet Employee Directory Validations on System_Overview_&_SLA
+  const overviewSheet = ss.getSheetByName(CONFIG.SHEET_OVERVIEW);
+  if (overviewSheet && overviewSheet.getLastRow() >= 33) {
+    const valStatus = SpreadsheetApp.newDataValidation().requireValueInList(["Active", "On Leave", "Inactive"], true).setAllowInvalid(true).build();
+    const valProof = SpreadsheetApp.newDataValidation().requireValueInList([
+      "WhatsApp Group Snippet / Manifest AWB",
+      "Zendesk / Returns Portal Ticket ID",
+      "Finance Settlement Ticket ID",
+      "WMS Storage Audit Report Ticket ID",
+      "ERP / Order ID",
+      "Email Confirmation Snippet"
+    ], true).setAllowInvalid(true).build();
+
+    // Column B (Assigned Department) for Rows 33-39
+    overviewSheet.getRange(33, 2, 7, 1).setDataValidation(valDept);
+    // Column E (Active Status) for Rows 33-39
+    overviewSheet.getRange(33, 5, 7, 1).setDataValidation(valStatus);
+    // Column F (Operational Proof Channel) for Rows 33-39
+    overviewSheet.getRange(33, 6, 7, 1).setDataValidation(valProof);
+  }
+
+  // 5. Task_Completion_Log: Column C (Completed By / Assignee) Dropdown
+  const logSheet = ss.getSheetByName(CONFIG.SHEET_LOG);
+  if (logSheet && logSheet.getLastRow() >= 2) {
+    logSheet.getRange(3, 3, 48, 1).setDataValidation(valAssignee);
+  }
+
+  Logger.log("Dynamic dropdown validations applied cleanly across all sheets and employee hub.");
 }
 
 // ----------------------------------------------------------------------------
@@ -1365,7 +1392,37 @@ function handleEdit(e) {
 
   // A1b. Employee Directory Live Edit on System_Overview_&_SLA: re-sync dropdowns across all sheets
   if (name === CONFIG.SHEET_OVERVIEW && row >= 33 && row <= 39) {
+    // If user edited Employee Name (Col 1), auto-fill smart defaults for new employee
+    if (col === 1) {
+      const val = String(e.range.getValue() || "").trim();
+      if (val && !val.startsWith("[")) {
+        const curDept = String(sheet.getRange(row, 2).getValue() || "").trim();
+        if (!curDept || curDept.startsWith("[")) {
+          sheet.getRange(row, 2).setValue("Operations");
+        }
+        const curEmail = String(sheet.getRange(row, 3).getValue() || "").trim();
+        if (!curEmail || curEmail.startsWith("[")) {
+          sheet.getRange(row, 3).setValue(val.toLowerCase().replace(/\s+/g, ".") + "@alloinnoware.com");
+        }
+        const curRole = String(sheet.getRange(row, 4).getValue() || "").trim();
+        if (!curRole || curRole.startsWith("Assign")) {
+          sheet.getRange(row, 4).setValue("Operations Specialist & Task Assignee");
+        }
+        const curStatus = String(sheet.getRange(row, 5).getValue() || "").trim();
+        if (!curStatus || curStatus.startsWith("[")) {
+          sheet.getRange(row, 5).setValue("Active");
+        }
+        const curProof = String(sheet.getRange(row, 6).getValue() || "").trim();
+        if (!curProof || curProof.startsWith("Ticket")) {
+          sheet.getRange(row, 6).setValue("WhatsApp Group Snippet / Manifest AWB");
+        }
+        sheet.getRange(row, 7).setValue("Filter - " + val);
+      }
+    }
     applyAllSystemDropdowns();
+    try {
+      SpreadsheetApp.getActiveSpreadsheet().toast("👥 Employee Directory synced! Dynamic dropdowns updated across all desks.", "Team Member Added", 3);
+    } catch (err) {}
     return;
   }
 
