@@ -42,6 +42,65 @@ const CONFIG = {
 };
 
 // ----------------------------------------------------------------------------
+// 0. ACTIVE TEST SUITE: Sets All 4 Tasks to Past Overdue Dates (-1d, -7d, -15d, -30d)
+// ----------------------------------------------------------------------------
+/**
+ * 1-Click Testing Suite: Sets All 4 Tasks to Past Overdue Dates
+ * - ALLO-OPS-101 (Daily): -1 day (Yesterday)
+ * - ALLO-OPS-102 (Weekly): -7 days
+ * - ALLO-OPS-103 (Fortnightly): -15 days
+ * - ALLO-OPS-104 (Monthly): -30 days
+ * Resets alert flags so that checkOverdueAndEscalate() can be thoroughly tested across all cadences.
+ */
+function setAllTasksToPastOverdueDates() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (!masterSheet) return;
+
+  const now = new Date();
+  
+  // Calculate exact past dates at midnight
+  const d1 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+  const d7 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 0, 0, 0, 0);
+  const d15 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15, 0, 0, 0, 0);
+  const d30 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30, 0, 0, 0, 0);
+
+  // Set Due Dates in Column H
+  masterSheet.getRange("H3").setValue(d1).setNumberFormat("dd/MM/yyyy");
+  masterSheet.getRange("H4").setValue(d7).setNumberFormat("dd/MM/yyyy");
+  masterSheet.getRange("H5").setValue(d15).setNumberFormat("dd/MM/yyyy");
+  masterSheet.getRange("H6").setValue(d30).setNumberFormat("dd/MM/yyyy");
+
+  // Reset alert flags & timestamps across all 4 rows (Col J: Manager Alert, Col K: Escalation, Col L: Timestamp)
+  for (let r = 3; r <= 6; r++) {
+    masterSheet.getRange(r, 10).setValue(false);
+    masterSheet.getRange(r, 11).setValue(false);
+    masterSheet.getRange(r, 12).setValue("");
+  }
+
+  // Refresh pending desk
+  const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
+  if (pendingSheet) {
+    const sel = pendingSheet.getRange("D1").getValue();
+    filterPendingDeskByEmployee(pendingSheet, sel);
+  }
+
+  // Also reset checkboxes on Manager Dashboard if present
+  const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+  if (dashSheet) {
+    const dData = dashSheet.getDataRange().getValues();
+    for (let r = 7; r <= Math.min(dData.length, 10); r++) {
+      dashSheet.getRange(r, 6).setValue(false); // Col F: Manager Ack Checkbox
+      dashSheet.getRange(r, 7).setValue("");     // Col G: Ack Timestamp
+    }
+  }
+
+  try {
+    ss.toast("All 4 tasks set to past dates (-1d, -7d, -15d, -30d). Statuses are now OVERDUE across all cadences! Now run checkOverdueAndEscalate() to test Manager Alert email.", "Overdue Suite Loaded", 7);
+  } catch (e) {}
+}
+
+// ----------------------------------------------------------------------------
 // 1. MASTER BUILD & INITIALIZATION ENGINE
 // ----------------------------------------------------------------------------
 function buildAlloOperationsSystem(skipConfirmation) {
@@ -79,6 +138,9 @@ function buildAlloOperationsSystem(skipConfirmation) {
   const dashSheet = setupManagerDashboardSheet(ss);
   const testLabSheet = setupTestLabSheet(ss);
 
+  // Sync Pending Desk with current master state (populates all overdue/actionable tasks)
+  refreshPendingTasksDesk();
+
   // 2. Apply dropdown validations & formatting rules
   applyAllSystemDropdowns();
 
@@ -90,6 +152,9 @@ function buildAlloOperationsSystem(skipConfirmation) {
 
   // 5. Apply universal text wrapping, crisp slate borders, generous row heights & calibrated column widths
   applyPerfectColumnWidths();
+
+  // 6. Check for overdue tasks and dispatch Tier 1 Manager Alert digest
+  checkOverdueAndEscalate();
 
   ss.setActiveSheet(ss.getSheetByName(CONFIG.SHEET_TEST_LAB));
   ss.toast("Allo Innoware Operations System V8.0 (Master Styling & Test Lab) Online!", "Build 100% Complete", 5);
@@ -236,24 +301,12 @@ function setupTaskMasterSheet(ss) {
   sheet.getRange(2, 1, 50, headers.length).setWrap(true);
   sheet.getRange(2, 1, 1, headers.length).setBackground("#334155").setFontColor("#FFFFFF").setFontWeight("bold");
 
-  // Normalized Realistic Dates:
-  // Daily tasks are due TODAY (actionable)
-  // Weekly task is due +7 days (On Schedule)
-  // Monthly task is due +30 days (On Schedule)
+  // Set to Past Dates for Comprehensive End-to-End Overdue & Notification Testing (-1d, -7d, -15d, -30d):
   const now = new Date();
-  const dDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  if (dDaily.getDay() === 0) { // If Sunday, set to Monday (evaluator review day)
-    dDaily.setDate(dDaily.getDate() + 1);
-  }
-
-  const dWeekly = new Date(dDaily.getTime());
-  dWeekly.setDate(dWeekly.getDate() + 7);
-
-  const dFortnightly = new Date(dDaily.getTime());
-  dFortnightly.setDate(dFortnightly.getDate() + 15);
-
-  const dMonthly = new Date(dDaily.getTime());
-  dMonthly.setDate(dMonthly.getDate() + 30);
+  const dDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+  const dWeekly = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 0, 0, 0, 0);
+  const dFortnightly = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15, 0, 0, 0, 0);
+  const dMonthly = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30, 0, 0, 0, 0);
 
   // Real-time Urgency Formula: NOW() > Cutoff today -> "OVERDUE", else if H<=TODAY() -> "DUE TODAY", else "ON SCHEDULE"
   const f3 = '=IF(H3="","",IF(NOW()>H3+IFERROR(TIMEVALUE(LEFT(G3,5)),1),"OVERDUE",IF(H3<=TODAY(),"DUE TODAY","ON SCHEDULE")))';
@@ -1743,6 +1796,7 @@ function onOpen() {
       .addItem("📏 7. Auto-Fit & Stretch All Columns", "applyPerfectColumnWidths")
       .addItem("➕ 8. Add New Recurring Task (Interactive Prompt)", "addNewRecurringTask")
       .addItem("⚡ 9. Simulate Overdue for Testing (Sets ALLO-OPS-101 to Yesterday)", "simulateOverdueForTesting")
+      .addItem("🚨 10. Load Full Overdue Test Suite (Past 1d, 7d, 15d, 30d)", "setAllTasksToPastOverdueDates")
       .addToUi();
   } catch (e) {
     Logger.log("onOpen UI initialization: " + e.message);
@@ -1782,6 +1836,60 @@ function simulateOverdueForTesting() {
   }
 
   ss.toast("ALLO-OPS-101 Due Date set to Yesterday! Status is now OVERDUE. Now run Option 3 to test Manager Alert email.", "Overdue Simulated", 6);
+}
+
+/**
+ * 1-Click Testing Suite: Sets All 4 Tasks to Past Overdue Dates
+ * - ALLO-OPS-101 (Daily): -1 day (Yesterday)
+ * - ALLO-OPS-102 (Weekly): -7 days
+ * - ALLO-OPS-103 (Fortnightly): -15 days
+ * - ALLO-OPS-104 (Monthly): -30 days
+ * Resets alert flags so that checkOverdueAndEscalate() can be thoroughly tested across all cadences.
+ */
+function setAllTasksToPastOverdueDates() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (!masterSheet) return;
+
+  const now = new Date();
+  
+  // Calculate exact past dates at midnight
+  const d1 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+  const d7 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 0, 0, 0, 0);
+  const d15 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15, 0, 0, 0, 0);
+  const d30 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30, 0, 0, 0, 0);
+
+  // Set Due Dates in Column H
+  masterSheet.getRange("H3").setValue(d1).setNumberFormat("dd/MM/yyyy");
+  masterSheet.getRange("H4").setValue(d7).setNumberFormat("dd/MM/yyyy");
+  masterSheet.getRange("H5").setValue(d15).setNumberFormat("dd/MM/yyyy");
+  masterSheet.getRange("H6").setValue(d30).setNumberFormat("dd/MM/yyyy");
+
+  // Reset alert flags & timestamps across all 4 rows (Col J: Manager Alert, Col K: Escalation, Col L: Timestamp)
+  for (let r = 3; r <= 6; r++) {
+    masterSheet.getRange(r, 10).setValue(false);
+    masterSheet.getRange(r, 11).setValue(false);
+    masterSheet.getRange(r, 12).setValue("");
+  }
+
+  // Refresh pending desk
+  const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
+  if (pendingSheet) {
+    const sel = pendingSheet.getRange("D1").getValue();
+    filterPendingDeskByEmployee(pendingSheet, sel);
+  }
+
+  // Also reset checkboxes on Manager Dashboard if present
+  const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+  if (dashSheet) {
+    const dData = dashSheet.getDataRange().getValues();
+    for (let r = 7; r <= Math.min(dData.length, 10); r++) {
+      dashSheet.getRange(r, 6).setValue(false); // Col F: Manager Ack Checkbox
+      dashSheet.getRange(r, 7).setValue("");     // Col G: Ack Timestamp
+    }
+  }
+
+  ss.toast("All 4 tasks set to past dates (-1d, -7d, -15d, -30d). Statuses are now OVERDUE across all cadences! Now run Menu Option 3 to test Manager Alert email.", "Overdue Suite Loaded", 7);
 }
 
 function addNewRecurringTask() {
