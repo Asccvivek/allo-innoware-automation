@@ -1,34 +1,29 @@
 /**
  * ============================================================================
- * ALLO INNOWARE — AI OPERATIONS & AUTOMATION SYSTEM (PRODUCTION V7.5 UNIVERSAL TEXT WRAP)
+ * ALLO INNOWARE — OPERATIONS & AUTOMATION SYSTEM (ENTERPRISE PRODUCTION SUITE)
  * ============================================================================
  * Candidate & Automation Lead: Vivek Debnath (Founder's Office Assessment)
  * Submission Destination: hr.ops.allo@gmail.com
  * Brand Colors: #1E293B (Allo Slate Navy), #A6CE38 (Allo Eco Green), #E84E4E (Alert Red)
- * Target Roles: AI Operations & Automation Manager
+ * Target Role: Operations & Automation Manager (Founder's Office)
  * ============================================================================
  */
 
 const CONFIG = {
   COMPANY_NAME: "Allo Innoware",
   ARCHITECT_NAME: "Vivek Debnath",
-  MANAGER_EMAIL: "vivekdvnath@gmail.com",       // Dedicated Operations Manager channel (Active testing inbox)
-  MANAGER_CC: "viknthdv@gmail.com",
-  LEADERSHIP_EMAIL: "bidhudvnth@gmail.com",    // Dedicated Founder / Managing Director channel
-  LEADERSHIP_CC: "vivekdvnath@gmail.com",      // Ensure Founder escalation is directly received & verifiable by Vivek
   
-  // Real Test Mail & Gmail Alias Inboxes for Each Employee
+  // Default Corporate Inboxes (Can be dynamically overridden sheet-wise by any tester/evaluator)
+  DEFAULT_MANAGER_EMAIL: "operations.manager@alloinnoware.com",
+  DEFAULT_LEADERSHIP_EMAIL: "founder@alloinnoware.com",
+  HR_SUBMISSION_EMAIL: "hr.ops.allo@gmail.com",
+  
+  // Enterprise Departmental Inboxes for Each Team Member
   EMPLOYEE_EMAILS: {
-    "Rohan Sharma": "allo-rohan@mailinator.com",
-    "Priya Patel": "allo-priya@mailinator.com",
-    "Ankit Verma": "allo-ankit@mailinator.com",
-    "Sneha Kulkarni": "allo-sneha@mailinator.com"
-  },
-  EMPLOYEE_ALIASES: {
-    "Rohan Sharma": "vivekdvnath+rohan@gmail.com",
-    "Priya Patel": "vivekdvnath+priya@gmail.com",
-    "Ankit Verma": "vivekdvnath+ankit@gmail.com",
-    "Sneha Kulkarni": "vivekdvnath+sneha@gmail.com"
+    "Rohan Sharma": "rohan.logistics@alloinnoware.com",
+    "Priya Patel": "priya.cx@alloinnoware.com",
+    "Ankit Verma": "ankit.ecommerce@alloinnoware.com",
+    "Sneha Kulkarni": "sneha.supplychain@alloinnoware.com"
   },
 
   ESCALATE_AFTER_HOURS: 4,                              // Grace period: Level 2 escalation fires 4h after manager alert if unacknowledged
@@ -57,6 +52,48 @@ const CONFIG = {
   COLOR_ON_SCHEDULE_BG: "#DCFCE7",
   COLOR_ON_SCHEDULE_TXT: "#166534"
 };
+
+/**
+ * Dynamic Notification Routing Engine:
+ * - Detects active tester's logged-in Google account automatically so ANY evaluator can test live.
+ * - Allows sheet-wise email override directly from '📌 System_Overview_&_SLA' (cells D3 & D4).
+ */
+function getNotificationRoutingConfig_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let activeUser = "";
+  try {
+    activeUser = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+  } catch (e) {}
+
+  let managerEmail = "";
+  let leaderEmail = "";
+  let ccEmail = "";
+
+  const overviewSheet = ss ? ss.getSheetByName(CONFIG.SHEET_OVERVIEW) : null;
+  if (overviewSheet) {
+    const valMgr = String(overviewSheet.getRange("D20").getValue() || "").trim();
+    const valLead = String(overviewSheet.getRange("D21").getValue() || "").trim();
+    const valCC = String(overviewSheet.getRange("D22").getValue() || "").trim();
+    if (valMgr.includes("@") && !valMgr.includes("alloinnoware.com")) managerEmail = valMgr;
+    if (valLead.includes("@") && !valLead.includes("alloinnoware.com")) leaderEmail = valLead;
+    if (valCC.includes("@")) ccEmail = valCC;
+  }
+
+  // Dynamic Fallback: If not explicitly set in the sheet, route directly to active tester's Google Account!
+  if (!managerEmail) {
+    managerEmail = activeUser || CONFIG.DEFAULT_MANAGER_EMAIL;
+  }
+  if (!leaderEmail) {
+    leaderEmail = activeUser || CONFIG.DEFAULT_LEADERSHIP_EMAIL;
+  }
+
+  return {
+    managerEmail: managerEmail,
+    leaderEmail: leaderEmail,
+    ccEmail: ccEmail,
+    activeUser: activeUser || "Operations Lead"
+  };
+}
 
 // ----------------------------------------------------------------------------
 // 0. ACTIVE TEST SUITE: Sets All 4 Tasks to Past Overdue Dates (-1d, -7d, -15d, -30d)
@@ -120,7 +157,11 @@ function setAllTasksToPastOverdueDates() {
 // ----------------------------------------------------------------------------
 // 1. MASTER BUILD & INITIALIZATION ENGINE
 // ----------------------------------------------------------------------------
-function buildAlloOperationsSystem(skipConfirmation) {
+function runFullSystemBuildWithoutPrompt() {
+  buildAlloOperationsSystem(true);
+}
+
+function buildAlloOperationsSystem(skipConfirmation = true) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
   // Enforce Timezone to Asia/Kolkata and Locale to India
@@ -194,10 +235,10 @@ function setupOverviewSheet(ss) {
   sheet.clear();
   sheet.setTabColor("#2563EB");
 
-  sheet.getRange("A1:G1").merge().setValue("ALLO INNOWARE • AI OPERATIONS AUTOMATION & ESCALATION SYSTEM")
+  sheet.getRange("A1:G1").merge().setValue("ALLO INNOWARE • OPERATIONS AUTOMATION & ESCALATION SYSTEM")
     .setBackground(CONFIG.COLOR_NAVY).setFontColor(CONFIG.COLOR_GREEN).setFontWeight("bold").setFontSize(13).setHorizontalAlignment("center");
 
-  sheet.getRange("A2:G2").merge().setValue(`Candidate: Vivek Debnath (AI Operations Manager) | Destination: hr.ops.allo@gmail.com | Architecture: Multi-Tier Event-Driven Sheets Engine`)
+  sheet.getRange("A2:G2").merge().setValue(`Candidate: Vivek Debnath (Operations & Automation Manager) | Destination: hr.ops.allo@gmail.com | Architecture: Multi-Tier Event-Driven Sheets Engine`)
     .setBackground(CONFIG.COLOR_NAVY).setFontColor("#CBD5E1").setFontSize(10).setHorizontalAlignment("center");
 
   sheet.getRange("A4:G4").merge().setValue("1. ARCHITECTURAL FOUNDATION & ENTERPRISE ACCESS DECOUPLING")
@@ -226,7 +267,7 @@ function setupOverviewSheet(ss) {
   ];
   sheet.getRange(9, 1, slaRows.length, slaHeaders.length).setValues(slaRows);
 
-  // Section 3: Written Documentation Required by Assessment
+  // Section 3: Daily Task Tracking
   sheet.getRange("A13:G13").merge().setValue("3. DAILY TASK COMPLETION TRACKING (NON-TICKETING OPERATIONAL PROTOCOL)")
     .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10);
   
@@ -234,10 +275,10 @@ function setupOverviewSheet(ss) {
     "• Operational Challenge: Daily recurring workflows (such as marketplace dispatch confirmation or warehouse spot checks) do not generate Jira/Zendesk ticket IDs naturally. Forcing employees to create dummy tickets creates operational friction.\n" +
     "• Proposed Methodology: The employee enters the external proof reference (such as WhatsApp group dispatch confirmation snippet, courier manifest AWB, or batch ID) into Column F on 'My_Pending_Tasks' and adds optional operational context in Column G.\n" +
     "• Automated Anti-Fraud Validation: The system enforces validateProof_() — rejecting empty inputs, rejecting self-referential Task IDs (preventing employees from copying the task ID as proof), and requiring meaningful length (>= 3 chars).\n" +
-    "• Future AI Enhancement: In production, a Gemini API hook inspects pasted WhatsApp text snippets or attached dispatch manifests to verify semantic legitimacy and timestamps automatically.";
+    "• Enterprise Integration Roadmap: In production, an automated webhook inspects pasted WhatsApp text snippets or attached dispatch manifests to verify semantic legitimacy and timestamps automatically.";
   sheet.getRange("A14:G14").merge().setValue(dailyDoc).setWrap(true).setBackground(CONFIG.COLOR_LIGHT_GRAY);
 
-  // Section 4: Escalation & SLA Timing Logic
+  // Section 4: Escalation Logic
   sheet.getRange("A16:G16").merge().setValue("4. ESCALATION TIMING LOGIC & REASONING (WHY 4-HOUR GRACE & DEDICATED CHANNELS)")
     .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10);
 
@@ -248,26 +289,55 @@ function setupOverviewSheet(ss) {
     "• Founder Escalation Circuit Breaker: Checking [x] Manager Acknowledged pauses Level 2 escalation to allow managerial resolution, with a hard 24-hour backstop to guarantee executive visibility if the task remains unresolved.";
   sheet.getRange("A17:G17").merge().setValue(escalationDoc).setWrap(true).setBackground(CONFIG.COLOR_LIGHT_GRAY);
 
-  // Section 5: Evaluator Quick-Test & Configuration Guide
-  sheet.getRange("A19:G19").merge().setValue("5. EVALUATOR QUICK-TEST & CONFIGURATION GUIDE")
+  // Section 5: Dynamic In-Sheet Notification Routing & Tester Settings
+  sheet.getRange("A19:G19").merge().setValue("5. LIVE NOTIFICATION ROUTING & EVALUATOR INBOX SETTINGS")
+    .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10);
+
+  sheet.getRange("A20:C20").merge().setValue("Operations Manager Alert Recipient (Tier 1):").setFontWeight("bold").setHorizontalAlignment("right").setBackground("#F1F5F9");
+  sheet.getRange("D20:G20").merge().setValue("operations.manager@alloinnoware.com").setFontWeight("bold").setBackground(CONFIG.COLOR_YELLOW).setHorizontalAlignment("left");
+
+  sheet.getRange("A21:C21").merge().setValue("Leadership Escalation Recipient (Tier 2):").setFontWeight("bold").setHorizontalAlignment("right").setBackground("#F1F5F9");
+  sheet.getRange("D21:G21").merge().setValue("founder@alloinnoware.com").setFontWeight("bold").setBackground(CONFIG.COLOR_YELLOW).setHorizontalAlignment("left");
+
+  sheet.getRange("A22:C22").merge().setValue("Optional Notification CC Recipient:").setFontWeight("bold").setHorizontalAlignment("right").setBackground("#F1F5F9");
+  sheet.getRange("D22:G22").merge().setValue("hr.ops.allo@gmail.com").setBackground("#F8FAFC").setHorizontalAlignment("left");
+
+  const routingHelpDoc = 
+    "• Live Evaluator Testing Guide: Any evaluator or interviewer can test notification delivery by entering their personal email in cell D20 or D21 above. If left as default corporate email, alerts dynamically route to your active logged-in Google Account (Session.getActiveUser().getEmail()). Zero script editing needed!";
+  sheet.getRange("A23:G23").merge().setValue(routingHelpDoc).setWrap(true).setBackground("#EFF6FF").setFontSize(9);
+
+  // Section 6: Multi-Employee Workforce Access Architecture
+  sheet.getRange("A25:G25").merge().setValue("6. MULTI-EMPLOYEE WORKFORCE ACCESS & DESK ISOLATION ARCHITECTURE")
+    .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10);
+
+  const multiEmpDoc = 
+    "• Operational Multi-User Challenge: When 4–5 employees access a shared Google Sheet simultaneously, normal in-cell filtering (such as selecting a name in cell D1 on My_Pending_Tasks) alters the visible grid for all simultaneous viewers.\n" +
+    "• Architectural Solution 1 (Native Private Filter Views): Built directly into Google Sheets. Staff members click Data -> Filter views -> Create new filter view (or select 'Filter - Rohan Sharma'). Each browser session maintains an isolated, independent filtered view without interfering with other team members.\n" +
+    "• Architectural Solution 2 (Smart Login Detection): On opening the sheet, onOpen() detects the active Google user and auto-personalizes the view.\n" +
+    "• Architectural Solution 3 (Enterprise Hub-and-Spoke Separate Workbooks - Production Recommendation): For strict enterprise data privacy where employees must never see other members' tasks or manager dashboards, each employee receives an isolated child sheet (e.g. 'Allo - Rohan Sharma Work Desk') querying the Master Hub via =QUERY(IMPORTRANGE(...)) with 2-way Apps Script webhooks syncing completions back to the central Master Hub.";
+  sheet.getRange("A26:G26").merge().setValue(multiEmpDoc).setWrap(true).setBackground(CONFIG.COLOR_LIGHT_GRAY);
+
+  // Section 7: Evaluator Quick-Test & Configuration Guide
+  sheet.getRange("A28:G28").merge().setValue("7. EVALUATOR QUICK-TEST & VERIFICATION GUIDE")
     .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10);
 
   const testGuideDoc = 
     "• System Operational State: If tasks already show OVERDUE, the autonomous hourly cron has run, which is the system working.\n" +
-    "• How to Test Overdue & Level 1 Manager Alert: In Task_Master, change any task's due date to yesterday (or Cut-off Time to an hour ago today), then run 'Allo Innoware Ops' menu -> '▶️ 2. Run Overdue & Escalation Check Now'. Observe the live OVERDUE badge and manager alert sent to viknthdv@gmail.com.\n" +
+    "• How to Test Overdue & Level 1 Manager Alert: In Task_Master, change any task's due date to yesterday (or Cut-off Time to an hour ago today), then run 'Allo Innoware Ops' menu -> '▶️ 3. Run Overdue & Escalation Check Now'. Observe the live OVERDUE badge and manager alert sent to the configured recipient.\n" +
     "• How to Test Level 2 Leadership Escalation:\n" +
-    "   1) 4-Hour Unacknowledged SLA Breach: On an overdue task where manager alert was sent, edit Col L (Manager Alert Sent At) to 5 hours prior to current time (now - 5h) without checking Acknowledged. Run 'Run Overdue & Escalation Check Now' -> Level 2 escalation fires to bidhudvnth@gmail.com.\n" +
+    "   1) 4-Hour Unacknowledged SLA Breach: On an overdue task where manager alert was sent, edit Col L (Manager Alert Sent At) to 5 hours prior to current time (now - 5h) without checking Acknowledged. Run 'Run Overdue & Escalation Check Now' -> Level 2 escalation fires to the leadership recipient.\n" +
     "   2) 24-Hour Hard Backstop Cap: On Manager_Dashboard, tick 'Manager Acknowledged' first (pausing standard grace escalation). Then in Task_Master edit Col L to 25 hours prior to current time (now - 25h). Run 'Run Overdue & Escalation Check Now' -> Hard backstop escalation fires immediately.\n" +
-    "• Customizing Alert Emails: Notifications route to candidate test accounts (CONFIG.MANAGER_EMAIL & LEADERSHIP_EMAIL). To receive test emails directly on your own inbox, update those two strings in Apps Script (Extensions -> Apps Script -> Code.gs).\n" +
-    "• Copying This Sheet: If an evaluator creates a copy of this workbook, navigate to 'Allo Innoware Ops' menu -> '⏰ 4. Setup Automated Background Triggers' to re-bind the hourly cron, daily 8 AM refresh, and installable edit triggers to your Google account.";
-  sheet.getRange("A20:G20").merge().setValue(testGuideDoc).setWrap(true).setBackground(CONFIG.COLOR_LIGHT_GRAY);
+    "• 1-Click Zero Friction Testing: You can also click 'Allo Innoware Ops' menu -> '⚡ 9. Simulate Overdue for Testing' or '🚨 12. Simulate Unacknowledged Grace Expiry' to test the full cascade in 1 click!";
+  sheet.getRange("A29:G29").merge().setValue(testGuideDoc).setWrap(true).setBackground(CONFIG.COLOR_LIGHT_GRAY);
 
   // Crisp Slate Borders & Generous Spacing for Overview Desk
   sheet.getRange("A4:G5").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
   sheet.getRange("A7:G11").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
   sheet.getRange("A13:G14").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
   sheet.getRange("A16:G17").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange("A19:G20").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("A19:G23").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("A25:G26").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("A28:G29").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
 
   sheet.setRowHeight(1, 46);
   sheet.setRowHeight(2, 28);
@@ -281,9 +351,14 @@ function setupOverviewSheet(ss) {
   sheet.setRowHeight(16, 34);
   sheet.setRowHeight(17, 100);
   sheet.setRowHeight(19, 34);
-  sheet.setRowHeight(20, 140);
+  sheet.setRowHeights(20, 3, 32);
+  sheet.setRowHeight(23, 56);
+  sheet.setRowHeight(25, 34);
+  sheet.setRowHeight(26, 120);
+  sheet.setRowHeight(28, 34);
+  sheet.setRowHeight(29, 140);
 
-  sheet.getRange(1, 1, 22, 7).setWrap(true).setVerticalAlignment("middle");
+  sheet.getRange(1, 1, 30, 7).setWrap(true).setVerticalAlignment("middle");
 
   sheet.setColumnWidth(1, 200);
   sheet.setColumnWidth(2, 360);
@@ -309,13 +384,14 @@ function setupTaskMasterSheet(ss) {
   sheet.clear();
   sheet.setTabColor("#475569");
 
-  sheet.getRange("A1:L1").merge().setValue("ALLO INNOWARE • RECURRING TASK MASTER CADENCE REPOSITORY")
+  sheet.getRange("A1:N1").merge().setValue("ALLO INNOWARE • RECURRING TASK MASTER CADENCE REPOSITORY")
     .setBackground(CONFIG.COLOR_NAVY).setFontColor(CONFIG.COLOR_GREEN).setFontWeight("bold").setFontSize(12).setHorizontalAlignment("center");
 
   const headers = [
     "Task ID", "Task Description", "Assignee", "Department", 
     "Frequency", "Cadence (Days)", "Cut-off Time", "Current Cycle Due Date", 
-    "Urgency Status", "Manager Alert Sent", "Leadership Escalated", "Manager Alert Sent At"
+    "Urgency Status", "Manager Alert Sent", "Leadership Escalated", "Manager Alert Sent At",
+    "Assigned / Created At", "Assigned / Created By"
   ];
   sheet.getRange(2, 1, 1, headers.length).setValues([headers]);
   sheet.getRange(2, 1, 50, headers.length).setWrap(true);
@@ -334,30 +410,25 @@ function setupTaskMasterSheet(ss) {
   const f5 = '=IF(H5="","",IF(NOW()>H5+IFERROR(TIMEVALUE(LEFT(G5,5)),1),"OVERDUE",IF(H5<=TODAY(),"DUE TODAY","ON SCHEDULE")))';
   const f6 = '=IF(H6="","",IF(NOW()>H6+IFERROR(TIMEVALUE(LEFT(G6,5)),1),"OVERDUE",IF(H6<=TODAY(),"DUE TODAY","ON SCHEDULE")))';
 
-  // Exactly matches Allo Assessment Section 3 "Minimum Scenario to Build":
-  // Employee A: Daily Operations Update (Daily)
-  // Employee B: Portal Task A (Every 7 days)
-  // Employee C: Portal Task B (Every 15 days)
-  // Employee D: Portal Task C (Every 30 days)
   const seedTasks = [
-    ["ALLO-OPS-101", "Daily Operations Update & Marketplace Dispatch Status", "Rohan Sharma", "Logistics", "Daily (Mon-Sat)", 1, "19:00 IST", dDaily, f3, false, false, ""],
-    ["ALLO-OPS-102", "Portal Task A: Customer Return (RTO) & Damaged Goods Portal Audit", "Priya Patel", "Customer Experience", "Weekly (7 Days)", 7, "18:00 IST", dWeekly, f4, false, false, ""],
-    ["ALLO-OPS-103", "Portal Task B: Marketplace Settlement & Pricing Reconciliation", "Ankit Verma", "E-Commerce Ops", "Fortnightly (15 Days)", 15, "17:00 IST", dFortnightly, f5, false, false, ""],
-    ["ALLO-OPS-104", "Portal Task C: Monthly 3PL Warehouse Storage & Fulfillment Audit", "Sneha Kulkarni", "Supply Chain", "Monthly (30 Days)", 30, "17:00 IST", dMonthly, f6, false, false, ""]
+    ["ALLO-OPS-101", "Daily Operations Update & Marketplace Dispatch Status", "Rohan Sharma", "Logistics", "Daily (Mon-Sat)", 1, "19:00 IST", dDaily, f3, false, false, "", "21/11/2026 09:00:00", "Operations Lead (Admin)"],
+    ["ALLO-OPS-102", "Portal Task A: Customer Return (RTO) & Damaged Goods Portal Audit", "Priya Patel", "Customer Experience", "Weekly (7 Days)", 7, "18:00 IST", dWeekly, f4, false, false, "", "15/11/2026 09:00:00", "Operations Lead (Admin)"],
+    ["ALLO-OPS-103", "Portal Task B: Marketplace Settlement & Pricing Reconciliation", "Ankit Verma", "E-Commerce Ops", "Fortnightly (15 Days)", 15, "17:00 IST", dFortnightly, f5, false, false, "", "07/11/2026 09:00:00", "Operations Lead (Admin)"],
+    ["ALLO-OPS-104", "Portal Task C: Monthly 3PL Warehouse Storage & Fulfillment Audit", "Sneha Kulkarni", "Supply Chain", "Monthly (30 Days)", 30, "17:00 IST", dMonthly, f6, false, false, "", "23/10/2026 09:00:00", "Operations Lead (Admin)"]
   ];
 
   sheet.getRange(3, 1, seedTasks.length, headers.length).setValues(seedTasks);
   sheet.getRange(3, 8, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy");
   sheet.getRange(3, 12, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
+  sheet.getRange(3, 13, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
   // Freeze Header Rows (1-2) so headers remain permanently pinned on vertical scroll
   sheet.setFrozenRows(2);
 
   // Clear rows 7 to 50 so no phantom/dummy data appears until a real task is created
-  sheet.getRange(7, 1, 44, 12).clearContent();
+  sheet.getRange(7, 1, 44, 14).clearContent();
 
   // Smart Dynamic Auto-Task ID & Urgency Formulas for Rows 7 to 30:
-  // When an actual Task Description is typed in Column B, Column A instantly displays the next Task ID left-aligned!
   for (let r = 7; r <= 30; r++) {
     sheet.getRange(r, 1).setFormula(`=IF(B${r}="","", "ALLO-OPS-" & (100 + ${r} - 2))`).setFontWeight("bold").setHorizontalAlignment("left");
     sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
@@ -376,6 +447,8 @@ function setupTaskMasterSheet(ss) {
   sheet.getRange("J3:J50").setHorizontalAlignment("center"); // Alert Checkbox CENTERED
   sheet.getRange("K3:K50").setHorizontalAlignment("center"); // Escalated Checkbox CENTERED
   sheet.getRange("L3:L50").setHorizontalAlignment("center"); // Timestamp CENTERED
+  sheet.getRange("M3:M50").setHorizontalAlignment("center"); // Assigned / Created At CENTERED
+  sheet.getRange("N3:N50").setHorizontalAlignment("left");   // Assigned / Created By LEFT
 
   // Conditional Formatting for Urgency Status (Column I)
   const rangeI = sheet.getRange("I3:I50");
@@ -402,7 +475,7 @@ function setupTaskMasterSheet(ss) {
   sheet.setRowHeight(1, 46);
   sheet.setRowHeight(2, 38);
   sheet.setRowHeights(3, seedTasks.length, 34);
-  sheet.getRange(3, 1, seedTasks.length, 1).setFontWeight("bold"); // Bold Task IDs
+  sheet.getRange(3, 1, seedTasks.length, 1).setFontWeight("bold");
   sheet.getRange(2, 1, seedTasks.length + 1, headers.length).setWrap(true).setVerticalAlignment("middle");
 
   return sheet;
@@ -768,7 +841,7 @@ function setupTestLabSheet(ss) {
       "Task_Master &\nManager Menu",
       "1. In Task_Master, set ALLO-OPS-101 Due Date to today or yesterday and cut-off to past.\n2. Click menu: 'Allo Innoware Ops' > '▶️ 3. Run Overdue & Escalation Check Now'.",
       "• Status turns 'OVERDUE' (Red badge).\n• Col J ('Manager Alert Sent') becomes TRUE.\n• Col L records exact dispatch timestamp.\n• Toast: '⚠️ Overdue breach on 1 task(s)!'",
-      "High-Priority HTML Email delivered to Operations Manager (viknthdv@gmail.com) with Task ID, SLA breach time, and Direct Sheet Link.",
+      "High-Priority HTML Email delivered to Operations Manager (or active logged-in tester) with Task ID, SLA breach time, and Direct Sheet Link.",
       "⚪ Not Tested",
       ""
     ],
@@ -788,7 +861,7 @@ function setupTestLabSheet(ss) {
       "Task_Master &\nManager Menu",
       "1. On overdue task in Task_Master, set Col L ('Manager Alert Sent At') to 5 hours ago (now - 5h).\n2. Click menu: 'Allo Innoware Ops' > '▶️ 3. Run Overdue & Escalation Check Now'.",
       "• Col K ('Leadership Escalated') turns TRUE.\n• Urgency status escalates to 'CRITICAL / ESCALATED'.\n• Toast: '🚨 Critical SLA breach on 1 task(s)! Escalated to Founder/Leadership.'",
-      "Urgent Red-Header HTML Email dispatched to Founder (bidhudvnth@gmail.com) alerting that manager grace period expired without resolution.",
+      "Urgent Red-Header HTML Email dispatched to Founder (or active logged-in tester) alerting that manager grace period expired without resolution.",
       "⚪ Not Tested",
       ""
     ],
@@ -1104,8 +1177,24 @@ function autoGenerateTaskIdForRow_(sheet, row) {
   sheet.getRange(row, 10).setValue(false);
   sheet.getRange(row, 11).setValue(false);
   
-  sheet.getRange(row, 1, 1, 12).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
-  sheet.getRange(row, 1, 1, 12).setWrap(true).setVerticalAlignment("middle");
+  // Set Assigned / Created At (Col 13) and Assigned / Created By (Col 14)
+  const createdAtCell = sheet.getRange(row, 13);
+  if (!createdAtCell.getValue() || String(createdAtCell.getValue()).trim() === "") {
+    createdAtCell.setValue(Utilities.formatDate(new Date(), "Asia/Kolkata", "dd/MM/yyyy HH:mm:ss"))
+      .setNumberFormat("dd/MM/yyyy HH:mm:ss")
+      .setHorizontalAlignment("center");
+  }
+  const createdByCell = sheet.getRange(row, 14);
+  if (!createdByCell.getValue() || String(createdByCell.getValue()).trim() === "") {
+    let activeEmail = "";
+    try {
+      activeEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (e) {}
+    createdByCell.setValue(activeEmail || "Operations Lead (Admin)").setHorizontalAlignment("left");
+  }
+
+  sheet.getRange(row, 1, 1, 14).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange(row, 1, 1, 14).setWrap(true).setVerticalAlignment("middle");
   sheet.setRowHeight(row, 34);
 
   // Apply row dropdowns dynamically to this active row only
@@ -1142,10 +1231,10 @@ function handleEdit(e) {
   const row = e.range.getRow();
   const col = e.range.getColumn();
 
-  // A. Auto Task ID in Task_Master when user edits rows 7 to 50
+  // A. Auto Task ID & Creator Audit in Task_Master when user edits rows 7 to 50
   if (name === CONFIG.SHEET_MASTER && row >= 7 && row <= 50) {
-    const rowValues = sheet.getRange(row, 1, 1, 7).getValues()[0];
-    const hasAnyInput = rowValues.some(v => String(v || '').trim() !== "");
+    const rowValues = sheet.getRange(row, 1, 1, 14).getValues()[0];
+    const hasAnyInput = rowValues.slice(0, 7).some(v => String(v || '').trim() !== "");
     const id = String(rowValues[0] || '').trim();
     
     // If row has any input at all and is not already a fully initialized task
@@ -1153,9 +1242,20 @@ function handleEdit(e) {
       if (!id.match(/^ALLO-OPS-\d+$/i) || !sheet.getRange(row, 9).getFormula()) {
         autoGenerateTaskIdForRow_(sheet, row);
       }
+      // Ensure Created At & Created By are set
+      const cAt = sheet.getRange(row, 13).getValue();
+      if (!cAt || String(cAt).trim() === "") {
+        sheet.getRange(row, 13).setValue(Utilities.formatDate(new Date(), "Asia/Kolkata", "dd/MM/yyyy HH:mm:ss")).setNumberFormat("dd/MM/yyyy HH:mm:ss").setHorizontalAlignment("center");
+      }
+      const cBy = sheet.getRange(row, 14).getValue();
+      if (!cBy || String(cBy).trim() === "") {
+        let activeUser = "";
+        try { activeUser = (e.user && e.user.getEmail()) ? e.user.getEmail() : Session.getActiveUser().getEmail(); } catch (err) {}
+        sheet.getRange(row, 14).setValue(activeUser || "Operations Lead (Admin)").setHorizontalAlignment("left");
+      }
     } else {
       // User emptied row -> Clean up row completely to avoid ghost rows
-      sheet.getRange(row, 1, 1, 12).clearContent().clearFormat().clearDataValidations();
+      sheet.getRange(row, 1, 1, 14).clearContent().clearFormat().clearDataValidations();
       applyAllSystemDropdowns();
     }
   }
@@ -1564,15 +1664,16 @@ function checkOverdueAndEscalate() {
     let feedbackTitle = "Scan Complete";
     let feedbackMsg = "";
 
+    const routing = getNotificationRoutingConfig_();
     if (mgr.length > 0 && lead.length > 0) {
       feedbackTitle = "⚠️ Alert & Escalation Sent";
-      feedbackMsg = `Dispatched ${mgr.length} Manager Alert(s) to ${CONFIG.MANAGER_EMAIL} & escalated ${lead.length} item(s) to Founder (${CONFIG.LEADERSHIP_EMAIL})!`;
+      feedbackMsg = `Dispatched ${mgr.length} Manager Alert(s) to ${routing.managerEmail} & escalated ${lead.length} item(s) to Founder (${routing.leaderEmail})!`;
     } else if (mgr.length > 0) {
       feedbackTitle = "⚠️ Manager Alert Dispatched";
-      feedbackMsg = `Overdue breach on ${mgr.length} task(s)! Email alert sent to Operations Manager (${CONFIG.MANAGER_EMAIL}).`;
+      feedbackMsg = `Overdue breach on ${mgr.length} task(s)! Email alert sent to Operations Manager (${routing.managerEmail}).`;
     } else if (lead.length > 0) {
       feedbackTitle = "🚨 Leadership Escalation Sent";
-      feedbackMsg = `Critical SLA breach on ${lead.length} task(s)! Escalated to Founder (${CONFIG.LEADERSHIP_EMAIL}).`;
+      feedbackMsg = `Critical SLA breach on ${lead.length} task(s)! Escalated to Founder (${routing.leaderEmail}).`;
     } else if (alreadyAlertedCount > 0) {
       feedbackTitle = "ℹ️ Anti-Spam Lock Active";
       feedbackMsg = `${alreadyAlertedCount} task(s) currently overdue, but alerts were already dispatched earlier. Zero duplicate emails sent (Idempotency Active).`;
@@ -1636,13 +1737,15 @@ function sendManagerOverdueEmail(overdueTasks) {
   `;
 
   try {
-    MailApp.sendEmail({
-      to: CONFIG.MANAGER_EMAIL,
-      cc: "viknthdv@gmail.com",
+    const routing = getNotificationRoutingConfig_();
+    const mailOptions = {
+      to: routing.managerEmail,
       subject: `🚨 [Tier 1 Alert] ${overdueTasks.length} Overdue Operational Tasks — Allo Innoware`,
       htmlBody: htmlBody
-    });
-    Logger.log("Manager overdue email dispatched successfully to: " + CONFIG.MANAGER_EMAIL + " (CC: viknthdv@gmail.com)");
+    };
+    if (routing.ccEmail) mailOptions.cc = routing.ccEmail;
+    MailApp.sendEmail(mailOptions);
+    Logger.log("Manager overdue email dispatched successfully to: " + routing.managerEmail);
     return true;
   } catch (e) {
     Logger.log("Failed to send Manager alert: " + e.message);
@@ -1697,13 +1800,19 @@ function sendLeadershipEscalationEmail(escalatedTasks) {
   `;
 
   try {
-    MailApp.sendEmail({
-      to: CONFIG.LEADERSHIP_EMAIL,
-      cc: `${CONFIG.MANAGER_EMAIL}, ${CONFIG.LEADERSHIP_CC}`,
+    const routing = getNotificationRoutingConfig_();
+    let ccList = [];
+    if (routing.ccEmail) ccList.push(routing.ccEmail);
+    if (routing.managerEmail && routing.managerEmail !== routing.leaderEmail) ccList.push(routing.managerEmail);
+
+    const mailOptions = {
+      to: routing.leaderEmail,
       subject: `🚨🚨 [CRITICAL LEADERSHIP ESCALATION] ${escalatedTasks.length} Unresolved Operational Tasks — Allo Innoware`,
       htmlBody: htmlBody
-    });
-    Logger.log("Leadership escalation email dispatched successfully to: " + CONFIG.LEADERSHIP_EMAIL + " (CC: " + CONFIG.MANAGER_EMAIL + ", " + CONFIG.LEADERSHIP_CC + ")");
+    };
+    if (ccList.length > 0) mailOptions.cc = ccList.join(", ");
+    MailApp.sendEmail(mailOptions);
+    Logger.log("Leadership escalation email dispatched successfully to: " + routing.leaderEmail);
     return true;
   } catch (e) {
     Logger.log("Failed to send Leadership escalation: " + e.message);
@@ -1847,21 +1956,17 @@ function runAllAutomatedTests() {
   const a4Passed = (a4Short === 'Proof too short' && a4Valid === '');
   results.push(["Check 4", "Proof Length & Format Validation", "validateProof_ with short vs valid input", "Rejects <3 chars, permits valid tickets", a4Passed ? "✅ PASSED (Dual Validator Verified)" : "❌ FAILED"]);
 
-  // Assertion 5: Multi-Inbox & User Identity Verification (Validates all 3 dedicated inboxes)
-  let activeUser = "";
-  try { activeUser = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail(); } catch (e) {}
-  if (!activeUser) activeUser = "vivekdvnath@gmail.com";
-  const hasManager = (CONFIG.MANAGER_EMAIL && CONFIG.MANAGER_EMAIL.includes("@"));
-  const hasLeader = (CONFIG.LEADERSHIP_EMAIL && CONFIG.LEADERSHIP_EMAIL.includes("@"));
-  const allInboxesActive = (hasManager && hasLeader && activeUser !== "");
-  const a5Input = `Active: ${activeUser} | Mgr: ${CONFIG.MANAGER_EMAIL} | Lead: ${CONFIG.LEADERSHIP_EMAIL}`;
-  const a5Verdict = allInboxesActive ? "✅ PASSED (All 3 Inboxes Active)" : "❌ FAILED";
-  results.push(["Check 5", "Multi-Inbox Authentication", a5Input, "Captures user & verifies 3 live channels", a5Verdict]);
+  // Assertion 5: Dynamic Inbox Routing Engine
+  const routing = getNotificationRoutingConfig_();
+  const allInboxesActive = (routing.managerEmail.includes("@") && routing.leaderEmail.includes("@"));
+  const a5Input = `Active Tester: ${routing.activeUser} | Mgr: ${routing.managerEmail} | Lead: ${routing.leaderEmail}`;
+  const a5Verdict = allInboxesActive ? "✅ PASSED (Dynamic Routing Active)" : "❌ FAILED";
+  results.push(["Check 5", "Dynamic Inbox Routing Engine", a5Input, "Captures logged-in tester & routes alerts dynamically", a5Verdict]);
 
   // Assertion 6: Manager Grace Window & 24h Hard Cap Separation
   const graceHours = CONFIG.ESCALATE_AFTER_HOURS;
   const hardHours = CONFIG.HARD_ESCALATE_AFTER_HOURS;
-  const a6Passed = (graceHours === 4 && hardHours === 24 && CONFIG.MANAGER_EMAIL !== CONFIG.LEADERSHIP_EMAIL);
+  const a6Passed = (graceHours === 4 && hardHours === 24);
   results.push(["Check 6", "Escalation Grace & Hard Cap", "Evaluate 4h Grace & 24h Hard Cap settings", "4h grace unacknowledged, 24h hard cap enforced", a6Passed ? "✅ PASSED (4h Grace + 24h Cap Enforced)" : "❌ FAILED"]);
 
   // Assertion 7: Manager Dashboard Circuit Breaker Structure
@@ -1872,13 +1977,13 @@ function runAllAutomatedTests() {
   }
   results.push(["Check 7", "Circuit Breaker Timestamp Schema", "Manager checks [x] on Dashboard", "Logs exact review timestamp in Col G", hasAckCol ? "✅ PASSED (Col G Timestamp Active)" : "❌ FAILED"]);
 
-  // Assertion 8: Task Master Alert Sent At Tracking Structure
-  let hasMasterAlertAt = false;
+  // Assertion 8: Task Master Audit Trail & Created By Schema
+  let hasMasterAudit = false;
   if (masterSheet) {
-    const mH = masterSheet.getRange(2, 1, 1, 12).getValues()[0];
-    hasMasterAlertAt = (mH[11] === "Manager Alert Sent At");
+    const mH = masterSheet.getRange(2, 1, 1, 14).getValues()[0];
+    hasMasterAudit = (mH[11] === "Manager Alert Sent At" && mH[12] === "Assigned / Created At" && mH[13] === "Assigned / Created By");
   }
-  results.push(["Check 8", "Tier 1 Alert Timestamping Schema", "Record exact time Manager Alert was dispatched", "Stored in Task_Master Col L for Tier 2 evaluation", hasMasterAlertAt ? "✅ PASSED (Col L Active)" : "❌ FAILED"]);
+  results.push(["Check 8", "Audit Trail & Created By Schema", "Record creation timestamp & assigner identity", "Stored in Task_Master Col M & N automatically", hasMasterAudit ? "✅ PASSED (Cols M & N Active)" : "❌ FAILED"]);
 
   // Assertion 9: LockService Double-Click Protection
   const lock = LockService.getScriptLock();
@@ -1928,9 +2033,9 @@ function runAllAutomatedTests() {
   }
   results.push(["Check 14", "Founder KPI Scorecard", "Scorecard reflects count of tasks escalated to Founder", "Accurately references Task_Master Column K", hasFounderCard ? "✅ PASSED (Executive KPI Card Active)" : "❌ FAILED"]);
 
-  // Assertion 15: Multi-Channel Employee Test Inboxes & Aliases
-  const hasEmployeeMails = (Object.keys(CONFIG.EMPLOYEE_EMAILS || {}).length >= 4 && Object.keys(CONFIG.EMPLOYEE_ALIASES || {}).length >= 4);
-  results.push(["Check 15", "Employee Test Mail Routing", "Mailinator (@mailinator.com) & Gmail (+alias) routing", "4 team members mapped to live test channels", hasEmployeeMails ? "✅ PASSED (4 Multi-Inboxes Configured)" : "❌ FAILED"]);
+  // Assertion 15: Corporate Departmental Channels Configured
+  const hasEmployeeMails = (Object.keys(CONFIG.EMPLOYEE_EMAILS || {}).length >= 4);
+  results.push(["Check 15", "Corporate Employee Channels", "Corporate department routing (Logistics, CX, E-Com, Supply)", "4 team members mapped to corporate channels", hasEmployeeMails ? "✅ PASSED (4 Corporate Inboxes Configured)" : "❌ FAILED"]);
 
   // Assertion 16: Simulation Engines for Unacknowledged Grace Expiry
   const hasSimulationEngine = (typeof simulateTier2LeadershipEscalation === "function" && typeof sendEmployeeTaskNotifications === "function");
@@ -2057,6 +2162,8 @@ function applyPerfectColumnWidths() {
     masterSheet.setColumnWidth(10, 115); // Manager Alert Sent
     masterSheet.setColumnWidth(11, 120); // Leadership Escalated
     masterSheet.setColumnWidth(12, 135); // Manager Alert Sent At
+    masterSheet.setColumnWidth(13, 145); // Assigned / Created At
+    masterSheet.setColumnWidth(14, 180); // Assigned / Created By
   }
 
   // Tab 3: My_Pending_Tasks (Optimized so all 8 columns fit without horizontal scroll!)
@@ -2185,12 +2292,30 @@ function onOpen() {
       .addItem("➕ 8. Manager Tool: Assign New Recurring Task to Employee", "addNewRecurringTask")
       .addItem("⚡ 9. Simulate Overdue for Testing (Sets ALLO-OPS-101 to Yesterday)", "simulateOverdueForTesting")
       .addItem("🚨 10. Load Full Overdue Test Suite (Past 1d, 7d, 15d, 30d)", "setAllTasksToPastOverdueDates")
-      .addItem("📧 11. Send Employee Task Reminders (Mailinator & Aliases)", "sendEmployeeTaskNotifications")
+      .addItem("📧 11. Send Employee Task Reminders", "sendEmployeeTaskNotifications")
       .addItem("🚨 12. Simulate Unacknowledged Grace Expiry & Trigger Owner Escalation", "simulateTier2LeadershipEscalation")
       .addToUi();
   } catch (e) {
     Logger.log("onOpen UI initialization: " + e.message);
   }
+
+  // Automatic Employee Desk Isolation: Detect logged-in user on open
+  try {
+    const email = (Session.getActiveUser().getEmail() || "").toLowerCase();
+    const pendingSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_PENDING);
+    if (pendingSheet && email) {
+      let matchedEmp = "";
+      if (email.includes("rohan")) matchedEmp = "Rohan Sharma";
+      else if (email.includes("priya")) matchedEmp = "Priya Patel";
+      else if (email.includes("ankit")) matchedEmp = "Ankit Verma";
+      else if (email.includes("sneha")) matchedEmp = "Sneha Kulkarni";
+      
+      if (matchedEmp) {
+        pendingSheet.getRange("D1").setValue(matchedEmp);
+        filterPendingDeskByEmployee(pendingSheet, matchedEmp);
+      }
+    }
+  } catch (err) {}
 }
 
 /**
@@ -2284,7 +2409,7 @@ function setAllTasksToPastOverdueDates() {
 
 /**
  * 1-Click Employee Notification Dispatch Engine
- * Sends personalized task digests to employees via Mailinator inboxes and Gmail aliases
+ * Sends personalized task digests to employees via corporate departmental inboxes
  */
 function sendEmployeeTaskNotifications() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2380,7 +2505,7 @@ function sendEmployeeTaskNotifications() {
     }
   }
 
-  ss.toast(`Dispatched ${dispatchedCount} employee task notifications to Mailinator inboxes & Gmail aliases!`, "Employee Alerts Sent", 6);
+  ss.toast(`Dispatched ${dispatchedCount} employee task digests to department inboxes!`, "Employee Alerts Sent", 6);
 }
 
 /**
@@ -2479,8 +2604,16 @@ function addNewRecurringTask() {
   masterSheet.getRange(nextRow, 11).setValue(false);
   masterSheet.getRange(nextRow, 12).setValue("").setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
-  masterSheet.getRange(nextRow, 1, 1, 12).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
-  masterSheet.getRange(nextRow, 1, 1, 12).setWrap(true).setVerticalAlignment("middle");
+  const nowTs = Utilities.formatDate(new Date(), "Asia/Kolkata", "dd/MM/yyyy HH:mm:ss");
+  let activeUser = "";
+  try {
+    activeUser = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+  } catch (e) {}
+  masterSheet.getRange(nextRow, 13).setValue(nowTs).setNumberFormat("dd/MM/yyyy HH:mm:ss").setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 14).setValue(activeUser || "Operations Lead (Admin)").setHorizontalAlignment("left");
+
+  masterSheet.getRange(nextRow, 1, 1, 14).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  masterSheet.getRange(nextRow, 1, 1, 14).setWrap(true).setVerticalAlignment("middle");
   masterSheet.setRowHeight(nextRow, 34);
 
   applyTaskRowValidations_(masterSheet, nextRow);

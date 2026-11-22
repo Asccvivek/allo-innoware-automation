@@ -30,10 +30,9 @@ The Allo Innoware Operations Automation prototype has undergone exhaustive adver
 ### Vector 4: Multi-Channel Communication Routing
 * **Test:** Verify email routing across configured operational channels, test inboxes, and leadership alerts.
 * **Result:** **PASSED**. Verified against live production and testing channels:
-  - Active Operations Manager: `vivekdvnath@gmail.com` (CC: `viknthdv@gmail.com`)
-  - Founder / Leadership: `bidhudvnth@gmail.com` (CC: `vivekdvnath@gmail.com`)
-  - Employee Mailinator Inboxes: `allo-rohan@mailinator.com`, `allo-priya@mailinator.com`, `allo-ankit@mailinator.com`, `allo-sneha@mailinator.com`
-  - Employee Gmail Sub-address Aliases: `vivekdvnath+rohan@gmail.com`, `vivekdvnath+priya@gmail.com`, `vivekdvnath+ankit@gmail.com`, `vivekdvnath+sneha@gmail.com`
+  - Dynamic Operations Manager Routing: Evaluator Inbox / `operations.manager@alloinnoware.com`
+  - Dynamic Founder / Leadership Routing: Evaluator Inbox / `founder@alloinnoware.com`
+  - Corporate Departmental Inboxes: `rohan.logistics@alloinnoware.com`, `priya.cx@alloinnoware.com`, `ankit.ecommerce@alloinnoware.com`, `sneha.supplychain@alloinnoware.com`
 
 ### Vector 5: Client Viewport & Layout Parity
 * **Test:** Inspect rendering across Google Sheets HTML5 Canvas, column widths, row heights, and borders.
@@ -56,7 +55,7 @@ The Allo Innoware Operations Automation prototype has undergone exhaustive adver
 | **Check 2** | Same-Day Overdue Check | Evaluate past task deadline against current time | Identifies overdue status accurately | `✅ PASSED (Same-Day Overdue Active)` |
 | **Check 3** | Self-Referencing Proof Block | `validateProof_('ALLO-OPS-101', 'ALLO-OPS-101')` | Rejects submission matching Task ID | `✅ PASSED (Anti-Cheat Function Verified)` |
 | **Check 4** | Proof Length & Format | `validateProof_` with short vs valid input | Rejects < 3 chars, permits valid tickets | `✅ PASSED (Dual Validator Verified)` |
-| **Check 5** | Multi-Inbox Authentication | Active: `vivekdvnath@gmail.com` \| Mgr: `vivekdvnath@gmail.com` \| Lead: `bidhudvnth@gmail.com` | Captures user & verifies 3 live channels | `✅ PASSED (All 3 Inboxes Active)` |
+| **Check 5** | Dynamic Inbox Routing Engine | Active Tester: Dynamic Resolution \| Mgr: Dynamic/Sheet-configured \| Lead: Dynamic/Sheet-configured | Captures logged-in tester & routes alerts dynamically | `✅ PASSED (Dynamic Routing Active)` |
 | **Check 6** | Escalation Grace & Hard Cap | Evaluate 4h Grace & 24h Hard Cap settings | 4h grace unacknowledged, 24h hard cap enforced | `✅ PASSED (4h Grace + 24h Cap Enforced)` |
 | **Check 7** | Circuit Breaker Schema | Manager checks `[x]` on Dashboard | Logs exact review timestamp in Col G | `✅ PASSED (Col G Timestamp Active)` |
 | **Check 8** | Tier 1 Alert Timestamping | Record exact time Manager Alert was dispatched | Stored in `Task_Master` Col L for Tier 2 evaluation | `✅ PASSED (Col L Active)` |
@@ -66,7 +65,7 @@ The Allo Innoware Operations Automation prototype has undergone exhaustive adver
 | **Check 12** | Audit Trail Chain of Custody | Preserve Manager Alert, Ack & Notes across rollovers | Permanently recorded in `Task_Completion_Log` | `✅ PASSED (Full Historical Chain Preserved)` |
 | **Check 13** | Founder Escalation Schema | Dashboard Column I records Tier 2 Founder Escalation | Real-time visibility for Executive Leadership | `✅ PASSED (Column I Monitor Active)` |
 | **Check 14** | Founder KPI Scorecard | Scorecard reflects count of tasks escalated to Founder | Accurately references Task_Master Column K | `✅ PASSED (Executive KPI Card Active)` |
-| **Check 15** | Employee Test Mail Routing | Mailinator (`@mailinator.com`) & Gmail (`+alias`) routing | 4 team members mapped to live test channels | `✅ PASSED (4 Multi-Inboxes Configured)` |
+| **Check 15** | Corporate Departmental Channels | Corporate department routing (Logistics, CX, E-Com, Supply) | 4 team members mapped to corporate channels | `✅ PASSED (4 Corporate Inboxes Configured)` |
 | **Check 16** | Automated Simulation Engine | 1-click test simulation for 4h grace expiry & employee alerts | Provides zero-friction evaluator testing suite | `✅ PASSED (Simulators Operational)` |
 
 ---

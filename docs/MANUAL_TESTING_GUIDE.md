@@ -4,7 +4,7 @@
 > **Prepared for:** Ramananda Kairi (`rama-kairi`)  
 > **Candidate / Author:** Vivek Debnath (`Asccvivek`)  
 > **Live System Sheet:** [Open Live Google Sheet](https://docs.google.com/spreadsheets/d/14MwdPdHUglsY4Bh1cwtU4zWj6IHqL8_uArUmeMQ5qW4/edit)  
-> **Target Evaluation:** AI Operations & Automation Manager (Founder's Office) — Allo Innoware  
+> **Target Evaluation:** Operations & Automation Manager (Founder's Office) — Allo Innoware  
 
 ---
 
@@ -84,7 +84,7 @@ The entire system runs inside the Google Sheet using **Google Apps Script (V8 ru
 * **Expected Verification:**
   - In `Task_Master`: Column I turns red **`OVERDUE`**, Col J (`Manager Alert Sent`) becomes **`TRUE`**, Col L records dispatch timestamp.
   - Toast: `⚠️ Overdue breach on 1 task(s)! Email alert sent to Operations Manager.`
-  - Gmail: Operations Manager (`viknthdv@gmail.com`) receives high-priority HTML email with Task ID, Description, SLA breach time, and direct sheet link.
+  - Gmail: Operations Manager (or active logged-in tester) receives high-priority HTML email with Task ID, Description, SLA breach time, and direct sheet link.
 
 ---
 
@@ -113,7 +113,7 @@ The entire system runs inside the Google Sheet using **Google Apps Script (V8 ru
 * **Expected Verification:**
   - In `Task_Master`: Col K (`Leadership Escalated`) becomes **`TRUE`**. Urgency status escalates to **`CRITICAL / ESCALATED`**.
   - Toast: `🚨 Critical SLA breach on 1 task(s)! Escalated to Founder/Leadership.`
-  - Gmail: Founder (`bidhudvnth@gmail.com`) receives urgent Red-Header HTML alert.
+  - Gmail: Founder (or active logged-in tester) receives urgent Red-Header HTML alert.
 
 ---
 

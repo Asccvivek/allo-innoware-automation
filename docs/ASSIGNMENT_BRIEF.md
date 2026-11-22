@@ -1,5 +1,5 @@
 # ALLO INNOWARE
-## AI Operations / Founder's Office – Assignment Test
+## Operations & Automation / Founder's Office – Assignment Test
 ### Recurring Task Tracking, Pending Reports & Escalation Automation
 
 ---

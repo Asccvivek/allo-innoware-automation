@@ -1,14 +1,14 @@
-# 🚀 Allo Innoware — AI Operations & Recurring Task Automation System
+# 🚀 Allo Innoware — Operations & Recurring Task Automation System
 
 > **Production Prototype (V8.0 Master Architecture)**  
 > **Candidate / Systems Lead:** Vivek Debnath ([Asccvivek](https://github.com/Asccvivek))  
 > **Submission Destination:** `hr.ops.allo@gmail.com`  
 > **Live Operating Sheet:** [Allo Innoware Operations Automation System](https://docs.google.com/spreadsheets/d/14MwdPdHUglsY4Bh1cwtU4zWj6IHqL8_uArUmeMQ5qW4/edit)  
-> **Target Role:** AI Operations & Automation Manager (Founder's Office)  
+> **Target Role:** Operations & Automation Manager (Founder's Office)  
 
 [![Google Sheets](https://img.shields.io/badge/Google%20Sheets-100%25%20Operational-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)](https://docs.google.com/spreadsheets/d/14MwdPdHUglsY4Bh1cwtU4zWj6IHqL8_uArUmeMQ5qW4/edit)
 [![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-V8%20Runtime-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://script.google.com)
-[![QA Status](https://img.shields.io/badge/QA%20Status-12%2F12%20Checks%20Passed-10B981?style=for-the-badge)](docs/QA_AUDIT_REPORT.md)
+[![QA Status](https://img.shields.io/badge/QA%20Status-16%2F16%20Checks%20Passed-10B981?style=for-the-badge)](docs/QA_AUDIT_REPORT.md)
 [![Privacy](https://img.shields.io/badge/Repo-Private-red?style=for-the-badge)]()
 
 ---
@@ -60,10 +60,10 @@ allo-innoware-automation/
 │   └── Code.gs                               # Production V8.0 Master script (88KB, 7 sheets, borders, wrap, toast, lock)
 ├── docs/
 │   ├── ASSIGNMENT_BRIEF.md                   # Official assignment requirements (Sections 1 to 7)
-│   ├── Allo_AI_Operations_Manager_Recurring_Task_Assignment_v2.docx # Original binary assignment document
 │   ├── MANUAL_TESTING_GUIDE.md               # Step-by-step verification guide for Ramananda Kairi
+│   ├── MULTI_EMPLOYEE_DESK_ARCHITECTURE.md   # Multi-user isolation, Filter Views & Hub-and-Spoke architecture
 │   ├── SYSTEM_ARCHITECTURE_AND_SLA.md       # Enterprise decoupling & SLA framework
-│   └── QA_AUDIT_REPORT.md                    # 6-Vector QA audit report (12/12 passed assertion checks)
+│   └── QA_AUDIT_REPORT.md                    # 6-Vector QA audit report (16/16 passed assertion checks)
 └── assets/
     └── screenshots/                          # Live UI captures across all 7 sheets + custom menu
 ```
