@@ -350,12 +350,34 @@ function setupTaskMasterSheet(ss) {
   sheet.getRange(3, 8, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy");
   sheet.getRange(3, 12, seedTasks.length, 1).setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
+  // Freeze Header Rows (1-2) and Task Identity Columns (A-B)
+  // Guarantees Task ID and Task Description remain permanently pinned to the left edge when scrolling horizontally!
+  sheet.setFrozenRows(2);
+  sheet.setFrozenColumns(2);
+
+  // Clear rows 7 to 50 so no phantom/dummy data appears until a real task is created
+  sheet.getRange(7, 1, 44, 12).clearContent();
+
   // Smart Dynamic Auto-Task ID & Urgency Formulas for Rows 7 to 30:
-  // As soon as ANY cell in that row is touched (Description, Assignee, Cadence), Column A instantly displays the next Task ID!
+  // When an actual Task Description is typed in Column B, Column A instantly displays the next Task ID left-aligned!
   for (let r = 7; r <= 30; r++) {
-    sheet.getRange(r, 1).setFormula(`=IF(COUNTA(B${r}:H${r})>0, "ALLO-OPS-" & (100 + ${r} - 2), "")`).setFontWeight("bold").setHorizontalAlignment("left");
+    sheet.getRange(r, 1).setFormula(`=IF(B${r}="","", "ALLO-OPS-" & (100 + ${r} - 2))`).setFontWeight("bold").setHorizontalAlignment("left");
     sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   }
+
+  // Explicit Column Alignments across all rows
+  sheet.getRange("A3:A50").setHorizontalAlignment("left").setFontWeight("bold");
+  sheet.getRange("B3:B50").setHorizontalAlignment("left");
+  sheet.getRange("C3:C50").setHorizontalAlignment("left");
+  sheet.getRange("D3:D50").setHorizontalAlignment("left");
+  sheet.getRange("E3:E50").setHorizontalAlignment("left");
+  sheet.getRange("F3:F50").setHorizontalAlignment("center"); // Cadence (Days) CENTERED
+  sheet.getRange("G3:G50").setHorizontalAlignment("center"); // Cut-off Time CENTERED
+  sheet.getRange("H3:H50").setHorizontalAlignment("center"); // Due Date CENTERED
+  sheet.getRange("I3:I50").setHorizontalAlignment("center"); // Urgency Status CENTERED
+  sheet.getRange("J3:J50").setHorizontalAlignment("center"); // Alert Checkbox CENTERED
+  sheet.getRange("K3:K50").setHorizontalAlignment("center"); // Escalated Checkbox CENTERED
+  sheet.getRange("L3:L50").setHorizontalAlignment("center"); // Timestamp CENTERED
 
   // Conditional Formatting for Urgency Status (Column I)
   const rangeI = sheet.getRange("I3:I50");
@@ -840,7 +862,9 @@ function applyAllSystemDropdowns() {
 
   const teamMembers = ["Rohan Sharma", "Priya Patel", "Ankit Verma", "Sneha Kulkarni"];
   const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control"];
-  const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Fortnightly (14 Days)", "Monthly (30 Days)"];
+  const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Monthly (30 Days)"];
+  const cadenceDays = ["1", "7", "15", "30"];
+  const cutoffs = ["17:00 IST", "18:00 IST", "19:00 IST", "20:00 IST"];
   const managerNotes = [
     "Reviewing with staff", 
     "Awaiting courier API sync", 
@@ -850,13 +874,27 @@ function applyAllSystemDropdowns() {
   ];
 
   if (masterSheet) {
+    // Column C: Assignee Dropdown
+    const valAssignee = SpreadsheetApp.newDataValidation().requireValueInList(teamMembers, true).setAllowInvalid(true).build();
+    masterSheet.getRange("C3:C50").setDataValidation(valAssignee);
+
+    // Column D: Department Dropdown
     const valDept = SpreadsheetApp.newDataValidation().requireValueInList(departments, true).setAllowInvalid(true).build();
     masterSheet.getRange("D3:D50").setDataValidation(valDept);
 
+    // Column E: Frequency Dropdown
     const valFreq = SpreadsheetApp.newDataValidation().requireValueInList(frequencies, true).setAllowInvalid(true).build();
     masterSheet.getRange("E3:E50").setDataValidation(valFreq);
 
-    // Date Validation: Triggers the native Google Sheets interactive calendar pop-up picker on double-click!
+    // Column F: Cadence (Days) Dropdown [1, 7, 15, 30] (also allows any custom number of days!)
+    const valCadence = SpreadsheetApp.newDataValidation().requireValueInList(cadenceDays, true).setAllowInvalid(true).build();
+    masterSheet.getRange("F3:F50").setDataValidation(valCadence);
+
+    // Column G: Cut-off Time Dropdown
+    const valCutoff = SpreadsheetApp.newDataValidation().requireValueInList(cutoffs, true).setAllowInvalid(true).build();
+    masterSheet.getRange("G3:G50").setDataValidation(valCutoff);
+
+    // Column H: Date Validation (Interactive Calendar Picker on double click)
     const valDate = SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(true).build();
     masterSheet.getRange("H3:H50").setDataValidation(valDate);
   }
@@ -945,22 +983,6 @@ function autoGenerateTaskIdForRow_(sheet, row) {
   } catch (err) {}
 }
 
-/**
- * Simple Trigger: onSelectionChange(e)
- * Fires automatically whenever a user clicks/selects any cell in Google Sheets!
- */
-function onSelectionChange(e) {
-  if (!e || !e.range) return;
-  try {
-    const sheet = e.range.getSheet();
-    if (sheet.getName() !== CONFIG.SHEET_MASTER) return;
-    const row = e.range.getRow();
-    if (row >= 7 && row <= 50) {
-      autoGenerateTaskIdForRow_(sheet, row);
-    }
-  } catch (err) {}
-}
-
 function handleEdit(e) {
   if (!e || !e.range) return;
   const sheet = e.range.getSheet();
@@ -968,9 +990,12 @@ function handleEdit(e) {
   const row = e.range.getRow();
   const col = e.range.getColumn();
 
-  // A. Auto Task ID in Task_Master on Edit (Row 7..50)
-  if (name === CONFIG.SHEET_MASTER && row >= 7 && row <= 50) {
-    autoGenerateTaskIdForRow_(sheet, row);
+  // A. Auto Task ID in Task_Master when Task Description (Col B) is typed
+  if (name === CONFIG.SHEET_MASTER && row >= 7 && row <= 50 && col === 2) {
+    const desc = String(e.range.getValue() || '').trim();
+    if (desc !== "") {
+      autoGenerateTaskIdForRow_(sheet, row);
+    }
     return;
   }
 
@@ -1907,9 +1932,23 @@ function applySmartAutoIdFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (!sheet) return;
-  sheet.getRange("A3:A50").setHorizontalAlignment("left");
+  sheet.setFrozenRows(2);
+  sheet.setFrozenColumns(2);
+  sheet.getRange(7, 1, 44, 12).clearContent();
+  sheet.getRange("A3:A50").setHorizontalAlignment("left").setFontWeight("bold");
+  sheet.getRange("B3:B50").setHorizontalAlignment("left");
+  sheet.getRange("C3:C50").setHorizontalAlignment("left");
+  sheet.getRange("D3:D50").setHorizontalAlignment("left");
+  sheet.getRange("E3:E50").setHorizontalAlignment("left");
+  sheet.getRange("F3:F50").setHorizontalAlignment("center");
+  sheet.getRange("G3:G50").setHorizontalAlignment("center");
+  sheet.getRange("H3:H50").setHorizontalAlignment("center");
+  sheet.getRange("I3:I50").setHorizontalAlignment("center");
+  sheet.getRange("J3:J50").setHorizontalAlignment("center");
+  sheet.getRange("K3:K50").setHorizontalAlignment("center");
+  sheet.getRange("L3:L50").setHorizontalAlignment("center");
   for (let r = 7; r <= 30; r++) {
-    sheet.getRange(r, 1).setFormula(`=IF(COUNTA(B${r}:H${r})>0, "ALLO-OPS-" & (100 + ${r} - 2), "")`).setFontWeight("bold").setHorizontalAlignment("left");
+    sheet.getRange(r, 1).setFormula(`=IF(B${r}="","", "ALLO-OPS-" & (100 + ${r} - 2))`).setFontWeight("bold").setHorizontalAlignment("left");
     sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   }
 }
