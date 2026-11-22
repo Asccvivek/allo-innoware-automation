@@ -570,14 +570,14 @@ function setupManagerDashboardSheet(ss) {
   sheet.getRange("G2:I2").merge().setValue("ON-TIME COMPLETION %").setBackground(CONFIG.COLOR_ON_SCHEDULE_BG).setFontWeight("bold").setFontColor(CONFIG.COLOR_ON_SCHEDULE_TXT).setHorizontalAlignment("center");
 
   // Dynamic Formulas for KPIs (Uses COUNTIF with wildcard to count non-empty descriptions, ignoring blank formula cells!)
-  sheet.getRange("A3:B3").merge().setValue('=COUNTIF(Task_Master!B3:B, "?*")').setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center");
-  sheet.getRange("C3").setValue('=COUNTIF(Task_Master!I3:I, "DUE TODAY")').setFontSize(16).setFontWeight("bold").setFontColor("#B45309").setHorizontalAlignment("center");
-  sheet.getRange("D3").setValue('=COUNTIF(Task_Master!I3:I, "OVERDUE")').setFontSize(16).setFontWeight("bold").setFontColor("#DC2626").setHorizontalAlignment("center");
-  sheet.getRange("E3:F3").merge().setValue('=COUNTIF(Task_Master!K3:K, TRUE)').setFontSize(16).setFontWeight("bold").setFontColor("#991B1B").setHorizontalAlignment("center");
+  sheet.getRange("A3:B3").merge().setFormula('=COUNTIF(Task_Master!B3:B, "?*")').setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center");
+  sheet.getRange("C3").setFormula('=COUNTIF(Task_Master!I3:I, "DUE TODAY")').setFontSize(16).setFontWeight("bold").setFontColor("#B45309").setHorizontalAlignment("center");
+  sheet.getRange("D3").setFormula('=COUNTIF(Task_Master!I3:I, "OVERDUE")').setFontSize(16).setFontWeight("bold").setFontColor("#DC2626").setHorizontalAlignment("center");
+  sheet.getRange("E3:F3").merge().setFormula('=COUNTIF(Task_Master!K3:K, TRUE)').setFontSize(16).setFontWeight("bold").setFontColor("#991B1B").setHorizontalAlignment("center");
   
   // Accurate KPI formula referencing Column I (SLA Status: On-Time / Delayed)
   const kpiFormula = '=IF(COUNTA(Task_Completion_Log!A3:A)=0, "100.0%", TEXT(COUNTIF(Task_Completion_Log!I3:I, "On-Time")/COUNTA(Task_Completion_Log!A3:A), "0.0%"))';
-  sheet.getRange("G3:I3").merge().setValue(kpiFormula).setFontSize(16).setFontWeight("bold").setFontColor("#15803D").setHorizontalAlignment("center");
+  sheet.getRange("G3:I3").merge().setFormula(kpiFormula).setFontSize(16).setFontWeight("bold").setFontColor("#15803D").setHorizontalAlignment("center");
 
   // Manager Exception & Circuit Breaker Table
   sheet.getRange("A5:I5").merge().setValue("MANAGER EXCEPTION & FOUNDER ESCALATION CONTROL (CIRCUIT BREAKER)")
@@ -1273,11 +1273,21 @@ function filterPendingDeskByEmployee(pendingSheet, selectedEmployee) {
   pendingSheet.getRange(3, 1, lastRow - 2, 8).clearContent().clearFormat().clearDataValidations();
 
   if (filteredRows.length > 0) {
-    pendingSheet.getRange(3, 1, filteredRows.length, 8).setValues(filteredRows);
-    pendingSheet.getRange(3, 8, filteredRows.length, 1).insertCheckboxes();
-    pendingSheet.getRange(3, 6, filteredRows.length, 1).setBackground(CONFIG.COLOR_YELLOW);
-    pendingSheet.getRange(3, 7, filteredRows.length, 1).setBackground("#F8FAFC");
-    pendingSheet.getRange(3, 4, filteredRows.length, 1).setNumberFormat("dd/MM/yyyy");
+    const rCount = filteredRows.length;
+    const rng = pendingSheet.getRange(3, 1, rCount, 8);
+    rng.setValues(filteredRows);
+    rng.setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+    rng.setWrap(true).setVerticalAlignment("middle");
+    pendingSheet.setRowHeights(3, rCount, 34);
+
+    pendingSheet.getRange(3, 1, rCount, 1).setFontWeight("bold").setHorizontalAlignment("left");
+    pendingSheet.getRange(3, 2, rCount, 1).setHorizontalAlignment("left");
+    pendingSheet.getRange(3, 3, rCount, 1).setHorizontalAlignment("left");
+    pendingSheet.getRange(3, 4, rCount, 1).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
+    pendingSheet.getRange(3, 5, rCount, 1).setFontWeight("bold").setHorizontalAlignment("center");
+    pendingSheet.getRange(3, 6, rCount, 1).setBackground(CONFIG.COLOR_YELLOW).setHorizontalAlignment("left");
+    pendingSheet.getRange(3, 7, rCount, 1).setBackground("#F8FAFC").setHorizontalAlignment("left");
+    pendingSheet.getRange(3, 8, rCount, 1).insertCheckboxes().setHorizontalAlignment("center");
   }
 
   applyAllSystemDropdowns();
@@ -2035,62 +2045,62 @@ function applyPerfectColumnWidths() {
   // Tab 2: Task_Master
   const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (masterSheet) {
-    masterSheet.setColumnWidth(1, 130); // Task ID
-    masterSheet.setColumnWidth(2, 380); // Task Description
-    masterSheet.setColumnWidth(3, 160); // Assignee
-    masterSheet.setColumnWidth(4, 170); // Department
-    masterSheet.setColumnWidth(5, 150); // Frequency
-    masterSheet.setColumnWidth(6, 120); // Cadence (Days)
-    masterSheet.setColumnWidth(7, 120); // Cut-off Time
-    masterSheet.setColumnWidth(8, 170); // Due Date
-    masterSheet.setColumnWidth(9, 150); // Urgency Status
-    masterSheet.setColumnWidth(10, 150); // Manager Alert Sent
-    masterSheet.setColumnWidth(11, 160); // Leadership Escalated
-    masterSheet.setColumnWidth(12, 190); // Manager Alert Sent At
+    masterSheet.setColumnWidth(1, 110); // Task ID
+    masterSheet.setColumnWidth(2, 260); // Task Description
+    masterSheet.setColumnWidth(3, 125); // Assignee
+    masterSheet.setColumnWidth(4, 125); // Department
+    masterSheet.setColumnWidth(5, 135); // Frequency
+    masterSheet.setColumnWidth(6, 95);  // Cadence (Days)
+    masterSheet.setColumnWidth(7, 105); // Cut-off Time
+    masterSheet.setColumnWidth(8, 95);  // Due Date
+    masterSheet.setColumnWidth(9, 110); // Urgency Status
+    masterSheet.setColumnWidth(10, 115); // Manager Alert Sent
+    masterSheet.setColumnWidth(11, 120); // Leadership Escalated
+    masterSheet.setColumnWidth(12, 135); // Manager Alert Sent At
   }
 
-  // Tab 3: My_Pending_Tasks
+  // Tab 3: My_Pending_Tasks (Optimized so all 8 columns fit without horizontal scroll!)
   const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
   if (pendingSheet) {
-    pendingSheet.setColumnWidth(1, 130); // Task ID
-    pendingSheet.setColumnWidth(2, 400); // Task Description
-    pendingSheet.setColumnWidth(3, 160); // Assigned Owner
-    pendingSheet.setColumnWidth(4, 140); // Due Date
-    pendingSheet.setColumnWidth(5, 140); // Urgency Status
-    pendingSheet.setColumnWidth(6, 320); // Ticket ID / WhatsApp Proof
-    pendingSheet.setColumnWidth(7, 280); // Optional Completion Remarks
-    pendingSheet.setColumnWidth(8, 130); // Mark Complete
+    pendingSheet.setColumnWidth(1, 110); // Task ID
+    pendingSheet.setColumnWidth(2, 260); // Task Description
+    pendingSheet.setColumnWidth(3, 130); // Assigned Owner
+    pendingSheet.setColumnWidth(4, 95);  // Due Date
+    pendingSheet.setColumnWidth(5, 110); // Urgency Status
+    pendingSheet.setColumnWidth(6, 180); // Ticket ID / WhatsApp Proof
+    pendingSheet.setColumnWidth(7, 160); // Optional Completion Remarks
+    pendingSheet.setColumnWidth(8, 115); // Mark Complete
   }
 
   // Tab 4: Task_Completion_Log
   const logSheet = ss.getSheetByName(CONFIG.SHEET_LOG);
   if (logSheet) {
-    logSheet.setColumnWidth(1, 180); // Log ID
-    logSheet.setColumnWidth(2, 130); // Task ID
-    logSheet.setColumnWidth(3, 380); // Task Description
-    logSheet.setColumnWidth(4, 240); // Completed By
-    logSheet.setColumnWidth(5, 170); // Timestamp
-    logSheet.setColumnWidth(6, 140); // Cycle Due Date
-    logSheet.setColumnWidth(7, 280); // Submitted Proof / Ticket ID
-    logSheet.setColumnWidth(8, 250); // Employee Remarks
-    logSheet.setColumnWidth(9, 130); // SLA Status
-    logSheet.setColumnWidth(10, 180); // Manager Alert Sent At
-    logSheet.setColumnWidth(11, 180); // Manager Acknowledged At
-    logSheet.setColumnWidth(12, 260); // Manager Follow-up Notes
+    logSheet.setColumnWidth(1, 160); // Log ID
+    logSheet.setColumnWidth(2, 110); // Task ID
+    logSheet.setColumnWidth(3, 280); // Task Description
+    logSheet.setColumnWidth(4, 180); // Completed By
+    logSheet.setColumnWidth(5, 150); // Timestamp
+    logSheet.setColumnWidth(6, 110); // Cycle Due Date
+    logSheet.setColumnWidth(7, 220); // Submitted Proof / Ticket ID
+    logSheet.setColumnWidth(8, 200); // Employee Remarks
+    logSheet.setColumnWidth(9, 110); // SLA Status
+    logSheet.setColumnWidth(10, 150); // Manager Alert Sent At
+    logSheet.setColumnWidth(11, 150); // Manager Acknowledged At
+    logSheet.setColumnWidth(12, 220); // Manager Follow-up Notes
   }
 
-  // Tab 5: Manager_Dashboard
+  // Tab 5: Manager_Dashboard (Optimized so all 9 columns and 5 scorecards fit on screen!)
   const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
   if (dashSheet) {
-    dashSheet.setColumnWidth(1, 130); // Task ID
-    dashSheet.setColumnWidth(2, 380); // Task Description
-    dashSheet.setColumnWidth(3, 160); // Assignee
-    dashSheet.setColumnWidth(4, 140); // Due Date
-    dashSheet.setColumnWidth(5, 140); // Urgency Status
-    dashSheet.setColumnWidth(6, 160); // Manager Acknowledged
-    dashSheet.setColumnWidth(7, 180); // Acknowledged At
-    dashSheet.setColumnWidth(8, 260); // Manager Follow-up Notes
-    dashSheet.setColumnWidth(9, 320); // Executive Escalation Tier & Owner Status
+    dashSheet.setColumnWidth(1, 110); // Task ID
+    dashSheet.setColumnWidth(2, 250); // Task Description
+    dashSheet.setColumnWidth(3, 125); // Assignee
+    dashSheet.setColumnWidth(4, 95);  // Due Date
+    dashSheet.setColumnWidth(5, 110); // Urgency Status
+    dashSheet.setColumnWidth(6, 120); // Manager Acknowledged
+    dashSheet.setColumnWidth(7, 135); // Acknowledged At
+    dashSheet.setColumnWidth(8, 170); // Manager Follow-up Notes
+    dashSheet.setColumnWidth(9, 190); // Executive Escalation Tier & Owner Status
   }
 
   // Tab 6: Step-by-Step Test Lab (Generous Widths + Middle Alignment)
@@ -2495,4 +2505,58 @@ function openTestLabDesk() {
     ss.setActiveSheet(lab);
     ss.toast("Welcome to the Official Assessment Test Lab! Follow rows 6-13.", "Test Desk Active", 4);
   }
+}
+
+
+function debugCheckAllSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  console.log('=== SYSTEM FORMULA & INTEGRITY AUDIT ===');
+  sheets.forEach(sh => {
+    const name = sh.getName();
+    const lr = sh.getLastRow();
+    const lc = sh.getLastColumn();
+    if (lr === 0 || lc === 0) {
+      console.log('Sheet: ' + name + ' is EMPTY');
+      return;
+    }
+    const maxR = Math.min(lr, 15);
+    const maxC = Math.min(lc, 12);
+    const formulas = sh.getRange(1, 1, maxR, maxC).getFormulas();
+    const disp = sh.getRange(1, 1, maxR, maxC).getDisplayValues();
+    let hasErr = false;
+    for (let r = 0; r < maxR; r++) {
+      for (let c = 0; c < maxC; c++) {
+        const v = disp[r][c];
+        const f = formulas[r][c];
+        if (typeof v === 'string' && (v.includes('#REF!') || v.includes('#VALUE!') || v.includes('#NAME?') || v.includes('#N/A') || v.includes('#ERROR!'))) {
+          console.warn('ERROR in ' + name + ' cell ' + String.fromCharCode(65+c) + (r+1) + ': value=' + v + ', formula=' + f);
+          hasErr = true;
+        }
+      }
+    }
+    if (!hasErr) {
+      console.log('Sheet: ' + name + ' (Rows: ' + lr + ', Cols: ' + lc + ') -> ALL CELLS VALID, ZERO #ERRORS');
+    }
+    if (name === 'Manager_Dashboard') {
+      console.log('Manager_Dashboard Scorecards:');
+      console.log('  A3: ' + disp[2][0] + ' [formula: ' + formulas[2][0] + ']');
+      console.log('  C3: ' + disp[2][2] + ' [formula: ' + formulas[2][2] + ']');
+      console.log('  D3: ' + disp[2][3] + ' [formula: ' + formulas[2][3] + ']');
+      console.log('  E3: ' + disp[2][4] + ' [formula: ' + formulas[2][4] + ']');
+      console.log('  G3: ' + disp[2][6] + ' [formula: ' + formulas[2][6] + ']');
+      console.log('Manager_Dashboard Row 7 (Task 1): ' + disp[6][0] + ' | Col I: ' + disp[6][8] + ' [formula: ' + formulas[6][8] + ']');
+      console.log('Manager_Dashboard Row 10 (Task 4): ' + disp[9][0] + ' | Col I: ' + disp[9][8] + ' [formula: ' + formulas[9][8] + ']');
+      console.log('Manager_Dashboard Row 11 (Task 5?): ' + disp[10][0] + ' | Col I: ' + disp[10][8] + ' [formula: ' + formulas[10][8] + ']');
+    }
+    if (name === 'Task_Master') {
+      console.log('Task_Master Row 3: ' + disp[2][0] + ' | Due: ' + disp[2][7] + ' | Status: ' + disp[2][8] + ' [formula: ' + formulas[2][8] + ']');
+      console.log('Task_Master Row 7: ' + disp[6][0] + ' | Desc: ' + disp[6][1] + ' | Col A formula: ' + formulas[6][0]);
+    }
+    if (name === 'My_Pending_Tasks') {
+      console.log('My_Pending_Tasks D1 filter: ' + disp[0][3]);
+      console.log('My_Pending_Tasks Row 3: ' + disp[2][0] + ' | Status: ' + disp[2][4] + ' | Proof: ' + disp[2][5]);
+    }
+  });
+  console.log('=== END AUDIT ===');
 }
