@@ -143,62 +143,29 @@ function getEmployeeDirectory_() {
 }
 
 // ----------------------------------------------------------------------------
-// 0. ACTIVE TEST SUITE: Sets All 4 Tasks to Past Overdue Dates (-1d, -7d, -15d, -30d)
+// 0. ROBUST DATE PARSER HELPER (Guarantees dd/MM/yyyy, strings & dates never fail)
 // ----------------------------------------------------------------------------
-/**
- * 1-Click Testing Suite: Sets All 4 Tasks to Past Overdue Dates
- * - ALLO-OPS-101 (Daily): -1 day (Yesterday)
- * - ALLO-OPS-102 (Weekly): -7 days
- * - ALLO-OPS-103 (Fortnightly): -15 days
- * - ALLO-OPS-104 (Monthly): -30 days
- * Resets alert flags so that checkOverdueAndEscalate() can be thoroughly tested across all cadences.
- */
-function setAllTasksToPastOverdueDates() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
-  if (!masterSheet) return;
-
-  const now = new Date();
-  
-  // Calculate exact past dates at midnight
-  const d1 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
-  const d7 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 0, 0, 0, 0);
-  const d15 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15, 0, 0, 0, 0);
-  const d30 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30, 0, 0, 0, 0);
-
-  // Set Due Dates in Column H
-  masterSheet.getRange("H3").setValue(d1).setNumberFormat("dd/MM/yyyy");
-  masterSheet.getRange("H4").setValue(d7).setNumberFormat("dd/MM/yyyy");
-  masterSheet.getRange("H5").setValue(d15).setNumberFormat("dd/MM/yyyy");
-  masterSheet.getRange("H6").setValue(d30).setNumberFormat("dd/MM/yyyy");
-
-  // Reset alert flags & timestamps across all 4 rows (Col J: Manager Alert, Col K: Escalation, Col L: Timestamp)
-  for (let r = 3; r <= 6; r++) {
-    masterSheet.getRange(r, 10).setValue(false);
-    masterSheet.getRange(r, 11).setValue(false);
-    masterSheet.getRange(r, 12).setValue("");
+function parseDateRobust_(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? null : new Date(val.getTime());
   }
-
-  // Refresh pending desk
-  const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
-  if (pendingSheet) {
-    const sel = pendingSheet.getRange("D1").getValue();
-    filterPendingDeskByEmployee(pendingSheet, sel);
+  if (typeof val === 'number') {
+    // Google Sheets serial date number
+    return new Date((val - 25569) * 86400 * 1000);
   }
-
-  // Also reset checkboxes on Manager Dashboard if present
-  const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
-  if (dashSheet) {
-    const dData = dashSheet.getDataRange().getValues();
-    for (let r = 7; r <= Math.min(dData.length, 10); r++) {
-      dashSheet.getRange(r, 6).insertCheckboxes().setValue(false); // Col F: Manager Ack Checkbox
-      dashSheet.getRange(r, 7).setValue("");     // Col G: Ack Timestamp
+  if (typeof val === 'string') {
+    val = val.trim();
+    if (!val) return null;
+    const dmy = val.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (dmy) {
+      const d = new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10));
+      if (!isNaN(d.getTime())) return d;
     }
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) return parsed;
   }
-
-  try {
-    ss.toast("All 4 tasks set to past dates (-1d, -7d, -15d, -30d). Statuses are now OVERDUE across all cadences! Now run checkOverdueAndEscalate() to test Manager Alert email.", "Overdue Suite Loaded", 7);
-  } catch (e) {}
+  return null;
 }
 
 // ----------------------------------------------------------------------------
@@ -1447,6 +1414,31 @@ function handleEdit(e) {
     return;
   }
 
+  // A3. Due Date Edit on Task_Master (Col H = 8): when user edits Due Date, immediately evaluate overdue status & auto-alert
+  if (name === CONFIG.SHEET_MASTER && row >= 3 && row <= 50 && col === 8) {
+    const rawVal = e.range.getValue();
+    const d = parseDateRobust_(rawVal);
+    if (d) {
+      const now = new Date();
+      const cutoffStr = sheet.getRange(row, 7).getValue();
+      const deadline = getDeadline_(d, cutoffStr);
+      if (now > deadline) {
+        // Reset alert flags on this row so fresh alert can trigger
+        sheet.getRange(row, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+        sheet.getRange(row, 12).setValue("");
+        // Immediately run overdue alert engine & stamp timestamp in Col L
+        checkOverdueAndEscalate();
+      }
+      // Also refresh pending desk
+      const pendingSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_PENDING);
+      if (pendingSheet) {
+        const sel = pendingSheet.getRange("D1").getValue();
+        filterPendingDeskByEmployee(pendingSheet, sel);
+      }
+    }
+    return;
+  }
+
   // B. Top Filter Dropdown in My_Pending_Tasks (Cell D1)
   if (name === CONFIG.SHEET_PENDING && row === 1 && col === 4) {
     const selectedEmployee = e.range.getValue();
@@ -1674,8 +1666,7 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
       }
 
       masterSheet.getRange(targetRow, 8).setValue(nextDue).setNumberFormat("dd/MM/yyyy");
-      masterSheet.getRange(targetRow, 10).setValue(false); // Reset Manager Alert Sent
-      masterSheet.getRange(targetRow, 11).setValue(false); // Reset Leadership Escalated
+      masterSheet.getRange(targetRow, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
       masterSheet.getRange(targetRow, 12).setValue("");    // Clear Manager Alert Sent At
     }
 
@@ -1684,7 +1675,7 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
       const dashData = dashSheet.getDataRange().getValues();
       for (let r = 6; r < dashData.length; r++) {
         if (dashData[r][0] === taskId) {
-          dashSheet.getRange(r + 1, 6).setValue(false); // Uncheck Acknowledged
+          dashSheet.getRange(r + 1, 6).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
           dashSheet.getRange(r + 1, 7).setValue("");     // Clear Ack Time
           dashSheet.getRange(r + 1, 8).setValue("");     // Clear Follow-up notes
           break;
@@ -1715,8 +1706,9 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
 // 5. OVERDUE & ESCALATION ENGINE: Precision Cutoffs, 4h Grace & 24h Hard Cap
 // ----------------------------------------------------------------------------
 function getDeadline_(due, cutoffStr) {
+  const parsedDue = parseDateRobust_(due) || new Date();
+  const d = new Date(parsedDue.getFullYear(), parsedDue.getMonth(), parsedDue.getDate(), 0, 0, 0, 0);
   const m = String(cutoffStr || '').match(/(\d{1,2}):(\d{2})/);
-  const d = new Date(due);
   if (m) {
     d.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0);
   } else {
@@ -1754,8 +1746,10 @@ function checkOverdueAndEscalate() {
 
     for (let i = 2; i < data.length; i++) { // Skip banner (i=0) and header (i=1)
       const id = data[i][0];
-      const due = data[i][7];
-      if (!id || !(due instanceof Date)) continue;
+      const rawDue = data[i][7];
+      if (!id) continue;
+      const due = parseDateRobust_(rawDue);
+      if (!due) continue;
 
       const deadline = getDeadline_(due, data[i][6]);
       if (now < deadline) continue; // Not late yet
@@ -1778,7 +1772,7 @@ function checkOverdueAndEscalate() {
       else if (!data[i][10]) {
         alreadyAlertedCount++;
         const alertedAt = data[i][11];
-        let alertDate = alertedAt instanceof Date ? alertedAt : (alertedAt ? new Date(alertedAt) : null);
+        let alertDate = parseDateRobust_(alertedAt);
         if (alertDate && !isNaN(alertDate.getTime())) {
           const hrs = (now.getTime() - alertDate.getTime()) / 36e5;
           const limit = ack[id] ? CONFIG.HARD_ESCALATE_AFTER_HOURS : CONFIG.ESCALATE_AFTER_HOURS;
@@ -1796,8 +1790,8 @@ function checkOverdueAndEscalate() {
       const success = sendManagerOverdueEmail(mgr);
       if (success) {
         mgr.forEach(t => { 
-          master.getRange(t.row, 10).setValue(true); 
-          master.getRange(t.row, 12).setValue(now).setNumberFormat("dd/MM/yyyy HH:mm:ss"); 
+          master.getRange(t.row, 10).insertCheckboxes().setValue(true).setHorizontalAlignment("center"); 
+          master.getRange(t.row, 12).setValue(now).setNumberFormat("dd/MM/yyyy HH:mm:ss").setHorizontalAlignment("center"); 
         });
       }
     }
@@ -1806,7 +1800,7 @@ function checkOverdueAndEscalate() {
       const success = sendLeadershipEscalationEmail(lead);
       if (success) {
         lead.forEach(t => { 
-          master.getRange(t.row, 11).setValue(true); 
+          master.getRange(t.row, 11).insertCheckboxes().setValue(true).setHorizontalAlignment("center"); 
         });
       }
     }
@@ -2422,6 +2416,32 @@ function applySmartAutoIdFormulas() {
   }
 }
 
+function cleanSystemSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dash = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+  if (dash) {
+    const lastR = dash.getLastRow();
+    if (lastR > 11) {
+      dash.getRange(12, 1, lastR - 11, dash.getLastColumn()).clearContent().clearFormat().clearDataValidations();
+    }
+  }
+  const master = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (master) {
+    const mData = master.getDataRange().getValues();
+    for (let r = 2; r < mData.length; r++) {
+      const id = String(mData[r][0] || '').trim();
+      if (id.match(/^ALLO-OPS-\d+$/i)) {
+        master.getRange(r + 1, 10, 1, 2).insertCheckboxes().setHorizontalAlignment("center");
+      }
+    }
+  }
+  applyAllSystemDropdowns();
+  applyPerfectColumnWidths();
+  try {
+    ss.toast("System sheets cleaned and aligned!", "Cleanup Complete", 4);
+  } catch (e) {}
+}
+
 function clearTaskMasterRows7Onwards() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
@@ -2445,6 +2465,7 @@ function onOpen() {
       .addItem("🚨 10. Load Full Overdue Test Suite (Past 1d, 7d, 15d, 30d)", "setAllTasksToPastOverdueDates")
       .addItem("📧 11. Send Employee Task Reminders", "sendEmployeeTaskNotifications")
       .addItem("🚨 12. Simulate Unacknowledged Grace Expiry & Trigger Owner Escalation", "simulateTier2LeadershipEscalation")
+      .addItem("🧹 13. Clean & Re-align All Sheets", "cleanSystemSheets")
       .addToUi();
   } catch (e) {
     Logger.log("onOpen UI initialization: " + e.message);
@@ -2508,8 +2529,7 @@ function simulateOverdueForTesting() {
   yesterday.setHours(0, 0, 0, 0);
 
   masterSheet.getRange("H3").setValue(yesterday).setNumberFormat("dd/MM/yyyy");
-  masterSheet.getRange("J3").setValue(false); // Reset alert flag
-  masterSheet.getRange("K3").setValue(false); // Reset escalation flag
+  masterSheet.getRange("J3:K3").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
   masterSheet.getRange("L3").setValue("");
 
   // Refresh pending desk
@@ -2519,16 +2539,28 @@ function simulateOverdueForTesting() {
     filterPendingDeskByEmployee(pendingSheet, sel);
   }
 
-  ss.toast("ALLO-OPS-101 Due Date set to Yesterday! Status is now OVERDUE. Now run Option 3 to test Manager Alert email.", "Overdue Simulated", 6);
+  // Also reset checkbox on Manager Dashboard row 7
+  const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+  if (dashSheet) {
+    dashSheet.getRange(7, 6).insertCheckboxes().setValue(false);
+    dashSheet.getRange(7, 7).setValue("");
+  }
+
+  // Automatically execute overdue alert engine
+  checkOverdueAndEscalate();
+
+  try {
+    ss.toast("⚡ ALLO-OPS-101 set to Yesterday! Overdue alert dispatched to Manager and timestamp recorded in Column L.", "Overdue Simulated & Alerted", 7);
+  } catch (e) {}
 }
 
 /**
- * 1-Click Testing Suite: Sets All 4 Tasks to Past Overdue Dates
+ * 1-Click Testing Suite: Sets All Tasks to Past Overdue Dates
  * - ALLO-OPS-101 (Daily): -1 day (Yesterday)
  * - ALLO-OPS-102 (Weekly): -7 days
  * - ALLO-OPS-103 (Fortnightly): -15 days
  * - ALLO-OPS-104 (Monthly): -30 days
- * Resets alert flags so that checkOverdueAndEscalate() can be thoroughly tested across all cadences.
+ * Resets alert flags, automatically dispatches Manager Alert email, and stamps Column L with timestamps!
  */
 function setAllTasksToPastOverdueDates() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2549,10 +2581,15 @@ function setAllTasksToPastOverdueDates() {
   masterSheet.getRange("H5").setValue(d15).setNumberFormat("dd/MM/yyyy");
   masterSheet.getRange("H6").setValue(d30).setNumberFormat("dd/MM/yyyy");
 
-  // Reset alert flags & timestamps across all 4 rows (Col J: Manager Alert, Col K: Escalation, Col L: Timestamp)
-  for (let r = 3; r <= 6; r++) {
-    masterSheet.getRange(r, 10).setValue(false);
-    masterSheet.getRange(r, 11).setValue(false);
+  const lastMasterRow = Math.max(6, masterSheet.getLastRow());
+  for (let r = 3; r <= lastMasterRow; r++) {
+    const taskId = masterSheet.getRange(r, 1).getValue();
+    if (!taskId) continue;
+    if (r > 6) {
+      const extraPast = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (r - 4), 0, 0, 0, 0);
+      masterSheet.getRange(r, 8).setValue(extraPast).setNumberFormat("dd/MM/yyyy");
+    }
+    masterSheet.getRange(r, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
     masterSheet.getRange(r, 12).setValue("");
   }
 
@@ -2567,13 +2604,18 @@ function setAllTasksToPastOverdueDates() {
   const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
   if (dashSheet) {
     const dData = dashSheet.getDataRange().getValues();
-    for (let r = 7; r <= Math.min(dData.length, 10); r++) {
+    for (let r = 7; r <= Math.min(dData.length, 12); r++) {
       dashSheet.getRange(r, 6).insertCheckboxes().setValue(false); // Col F: Manager Ack Checkbox
       dashSheet.getRange(r, 7).setValue("");     // Col G: Ack Timestamp
     }
   }
 
-  ss.toast("All 4 tasks set to past dates (-1d, -7d, -15d, -30d). Statuses are now OVERDUE across all cadences! Now run Menu Option 3 to test Manager Alert email.", "Overdue Suite Loaded", 7);
+  // Automatically execute overdue alert engine
+  checkOverdueAndEscalate();
+
+  try {
+    ss.toast("🚨 All tasks set to past dates (-1d, -7d, -15d, -30d)! Overdue alerts sent to Manager & timestamps recorded in Column L.", "Full Overdue Suite Active", 7);
+  } catch (e) {}
 }
 
 /**
@@ -2707,9 +2749,9 @@ function simulateTier2LeadershipEscalation() {
   for (let r = 2; r < mData.length; r++) {
     const status = mData[r][8];
     if (status === "OVERDUE") {
-      masterSheet.getRange(r + 1, 10).setValue(true);  // Manager Alert Sent = TRUE
-      masterSheet.getRange(r + 1, 11).setValue(false); // Reset escalation flag so it fires now
-      masterSheet.getRange(r + 1, 12).setValue(fiveHoursAgo).setNumberFormat("dd/MM/yyyy HH:mm:ss");
+      masterSheet.getRange(r + 1, 10).insertCheckboxes().setValue(true).setHorizontalAlignment("center");  // Manager Alert Sent = TRUE
+      masterSheet.getRange(r + 1, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center"); // Reset escalation flag so it fires now
+      masterSheet.getRange(r + 1, 12).setValue(fiveHoursAgo).setNumberFormat("dd/MM/yyyy HH:mm:ss").setHorizontalAlignment("center");
       candidateRows.push(r + 1);
     }
   }
@@ -2717,9 +2759,9 @@ function simulateTier2LeadershipEscalation() {
   if (candidateRows.length === 0) {
     // If no overdue tasks, make ALLO-OPS-102 overdue first
     masterSheet.getRange("H4").setValue(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 0, 0, 0, 0)).setNumberFormat("dd/MM/yyyy");
-    masterSheet.getRange(4, 10).setValue(true);
-    masterSheet.getRange(4, 11).setValue(false);
-    masterSheet.getRange(4, 12).setValue(fiveHoursAgo).setNumberFormat("dd/MM/yyyy HH:mm:ss");
+    masterSheet.getRange(4, 10).insertCheckboxes().setValue(true).setHorizontalAlignment("center");
+    masterSheet.getRange(4, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    masterSheet.getRange(4, 12).setValue(fiveHoursAgo).setNumberFormat("dd/MM/yyyy HH:mm:ss").setHorizontalAlignment("center");
   }
 
   // Now trigger the core escalation engine!
