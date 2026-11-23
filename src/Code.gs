@@ -1049,7 +1049,7 @@ function applyAllSystemDropdowns() {
       }
     }
 
-    // Arm active rows PLUS the very next entry row (lastActiveRow + 1) with in-cell dropdowns!
+    // Arm active rows PLUS the very next entry row (lastActiveRow + 1) with in-cell dropdowns & real checkboxes
     const targetArmedRow = Math.min(lastActiveRow + 1, 50);
     if (targetArmedRow >= 3) {
       const numArmed = targetArmedRow - 2;
@@ -1059,14 +1059,18 @@ function applyAllSystemDropdowns() {
       masterSheet.getRange(3, 6, numArmed, 1).setDataValidation(valCadence);
       masterSheet.getRange(3, 7, numArmed, 1).setDataValidation(valCutoff);
       masterSheet.getRange(3, 8, numArmed, 1).setDataValidation(valDate);
-      masterSheet.getRange(3, 10, numArmed, 2).insertCheckboxes().setHorizontalAlignment("center");
+      masterSheet.getRange(3, 10, numArmed, 1).insertCheckboxes().setHorizontalAlignment("center");
+      masterSheet.getRange(3, 11, numArmed, 1).insertCheckboxes().setHorizontalAlignment("center");
+      for (let r = 3; r <= targetArmedRow; r++) {
+        if (masterSheet.getRange(r, 10).getValue() !== true) masterSheet.getRange(r, 10).setValue(false);
+        if (masterSheet.getRange(r, 11).getValue() !== true) masterSheet.getRange(r, 11).setValue(false);
+      }
     }
 
-    // Clean up empty rows beyond targetArmedRow: wipe all floating dropdown arrows
+    // Clean up empty rows beyond targetArmedRow: completely wipe content & validations to prevent literal "FALSE"
     if (targetArmedRow < 50) {
       const numEmpty = 50 - targetArmedRow;
-      masterSheet.getRange(targetArmedRow + 1, 3, numEmpty, 6).clearDataValidations();
-      masterSheet.getRange(targetArmedRow + 1, 10, numEmpty, 2).removeCheckboxes().setValue("");
+      masterSheet.getRange(targetArmedRow + 1, 1, numEmpty, 14).clearContent().clearDataValidations();
     }
   }
 
@@ -1088,7 +1092,7 @@ function applyAllSystemDropdowns() {
       pendingSheet.getRange(3, 3, lastPendingRow - 2, 1).setDataValidation(valAssignee);
     }
     if (lastPendingRow < 50) {
-      pendingSheet.getRange(lastPendingRow + 1, 1, 50 - lastPendingRow, 8).clearDataValidations();
+      pendingSheet.getRange(lastPendingRow + 1, 1, 50 - lastPendingRow, 8).clearContent().clearDataValidations();
     }
   }
 
@@ -1108,12 +1112,15 @@ function applyAllSystemDropdowns() {
     if (lastDashRow >= 7) {
       const numDash = lastDashRow - 6;
       dashSheet.getRange(7, 8, numDash, 1).setDataValidation(valNotes);
-      dashSheet.getRange(7, 6, numDash, 1).insertCheckboxes();
+      dashSheet.getRange(7, 6, numDash, 1).insertCheckboxes().setHorizontalAlignment("center");
+      for (let r = 7; r <= lastDashRow; r++) {
+        if (dashSheet.getRange(r, 6).getValue() !== true) dashSheet.getRange(r, 6).setValue(false);
+      }
     }
     if (lastDashRow < 50) {
       const numEmptyDash = 50 - lastDashRow;
-      dashSheet.getRange(lastDashRow + 1, 6, numEmptyDash, 1).removeCheckboxes().setValue("");
-      dashSheet.getRange(lastDashRow + 1, 8, numEmptyDash, 1).clearDataValidations().setValue("");
+      dashSheet.getRange(lastDashRow + 1, 6, numEmptyDash, 1).clearContent().clearDataValidations();
+      dashSheet.getRange(lastDashRow + 1, 8, numEmptyDash, 1).clearContent().clearDataValidations();
     }
   }
 
@@ -1255,7 +1262,8 @@ function autoGenerateTaskIdForRow_(sheet, row) {
   }
   const statusCell = sheet.getRange(row, 9);
   statusCell.setFormula(`=IF(H${row}="","",IF(NOW()>H${row}+IFERROR(TIMEVALUE(LEFT(G${row},5)),1),"OVERDUE",IF(H${row}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
-  sheet.getRange(row, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+  sheet.getRange(row, 10).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+  sheet.getRange(row, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
   
   // Set Assigned / Created At (Col 13) and Assigned / Created By (Col 14)
   const createdAtCell = sheet.getRange(row, 13);
@@ -1292,12 +1300,15 @@ function autoGenerateTaskIdForRow_(sheet, row) {
   const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
   if (dashSheet) {
     const dashRow = row + 4; // Row 7 in Master maps to Row 11 in Dashboard
-    dashSheet.getRange(dashRow, 6).insertCheckboxes().setValue(false);
+    dashSheet.getRange(dashRow, 6).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
     const valNotes = SpreadsheetApp.newDataValidation().requireValueInList([
       "Reviewing with staff", "Awaiting courier API sync", "Warehouse spot check in progress", "Vendor contacted for delay", "Resolved - awaiting portal update"
     ], true).setAllowInvalid(true).build();
     dashSheet.getRange(dashRow, 8).setDataValidation(valNotes);
   }
+
+  // Ensure overall dropdowns & next row arming are refreshed
+  applyAllSystemDropdowns();
 
   try {
     SpreadsheetApp.getActiveSpreadsheet().toast(`✨ Generated ${nextId} for Row ${row}! Synced across all desks.`, "Auto Task ID Created", 3);
@@ -1314,7 +1325,7 @@ function handleEdit(e) {
   // A. Auto Task ID & Creator Audit in Task_Master when user edits rows 7 to 50
   if (name === CONFIG.SHEET_MASTER && row >= 7 && row <= 50) {
     const rowValues = sheet.getRange(row, 1, 1, 14).getValues()[0];
-    const hasAnyInput = rowValues.slice(0, 7).some(v => String(v || '').trim() !== "");
+    const hasAnyInput = rowValues.slice(0, 8).some(v => String(v || '').trim() !== "");
     const id = String(rowValues[0] || '').trim();
     
     // If row has any input at all and is not already a fully initialized task
@@ -1333,6 +1344,7 @@ function handleEdit(e) {
         try { activeUser = (e.user && e.user.getEmail()) ? e.user.getEmail() : Session.getActiveUser().getEmail(); } catch (err) {}
         sheet.getRange(row, 14).setValue(activeUser || "Operations Lead (Admin)").setHorizontalAlignment("left");
       }
+      applyAllSystemDropdowns();
     } else {
       // User emptied row -> Clean up row completely to avoid ghost rows
       sheet.getRange(row, 1, 1, 14).clearContent().clearFormat().clearDataValidations();
@@ -1428,7 +1440,8 @@ function handleEdit(e) {
       const deadline = getDeadline_(d, cutoffStr);
       if (now > deadline) {
         // Reset alert flags on this row so fresh alert can trigger
-        sheet.getRange(row, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+        sheet.getRange(row, 10).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+        sheet.getRange(row, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
         sheet.getRange(row, 12).setValue("");
         // Immediately run overdue alert engine & stamp timestamp in Col L
         checkOverdueAndEscalate();
@@ -1670,7 +1683,8 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
       }
 
       masterSheet.getRange(targetRow, 8).setValue(nextDue).setNumberFormat("dd/MM/yyyy");
-      masterSheet.getRange(targetRow, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+      masterSheet.getRange(targetRow, 10).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+      masterSheet.getRange(targetRow, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
       masterSheet.getRange(targetRow, 12).setValue("");    // Clear Manager Alert Sent At
     }
 
@@ -2654,7 +2668,8 @@ function setAllTasksToPastOverdueDates() {
       const extraPast = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (r - 4), 0, 0, 0, 0);
       masterSheet.getRange(r, 8).setValue(extraPast).setNumberFormat("dd/MM/yyyy");
     }
-    masterSheet.getRange(r, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    masterSheet.getRange(r, 10).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    masterSheet.getRange(r, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
     masterSheet.getRange(r, 12).setValue("");
   }
 
@@ -2876,7 +2891,8 @@ function addNewRecurringTask() {
   masterSheet.getRange(nextRow, 7).setValue("");
   masterSheet.getRange(nextRow, 8).setValue(d0).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 9).setFormula(`=IF(H${nextRow}="","",IF(NOW()>H${nextRow}+IFERROR(TIMEVALUE(LEFT(G${nextRow},5)),1),"OVERDUE",IF(H${nextRow}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
-  masterSheet.getRange(nextRow, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 10).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 12).setValue("").setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
   const nowTs = Utilities.formatDate(new Date(), "Asia/Kolkata", "dd/MM/yyyy HH:mm:ss");
