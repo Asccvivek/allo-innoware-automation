@@ -2005,44 +2005,12 @@ function sendLeadershipEscalationEmail(escalatedTasks) {
  */
 function refreshPendingTasksDesk() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
   const pendingSheet = ss.getSheetByName(CONFIG.SHEET_PENDING);
-  if (!masterSheet || !pendingSheet) return;
+  if (!pendingSheet) return;
 
-  const masterData = masterSheet.getDataRange().getValues();
-  const now = new Date();
-  const todayMidnight = new Date();
-  todayMidnight.setHours(0, 0, 0, 0);
-
-  let newRows = [];
-  for (let i = 2; i < masterData.length; i++) {
-    const taskId = masterData[i][0];
-    if (!taskId) continue;
-    const taskName = masterData[i][1];
-    const assignee = masterData[i][2];
-    const dueDate = new Date(masterData[i][7]);
-    const cutoffStr = masterData[i][6];
-    const deadline = getDeadline_(dueDate, cutoffStr);
-
-    let urgency = "ON SCHEDULE";
-    if (now > deadline) {
-      urgency = "OVERDUE";
-    } else if (dueDate.getTime() <= todayMidnight.getTime()) {
-      urgency = "DUE TODAY";
-    }
-
-    if (dueDate.getTime() <= todayMidnight.getTime() || urgency === "OVERDUE") {
-      newRows.push([taskId, taskName, assignee, dueDate, urgency, "", "", false]);
-    }
-  }
-
-  const lastRow = Math.max(pendingSheet.getLastRow(), 6);
-  pendingSheet.getRange(3, 1, lastRow - 2, 8).clearContent().clearFormat().clearDataValidations();
-
-  if (newRows.length > 0) {
-    pendingSheet.getRange(3, 1, newRows.length, 8).setValues(newRows);
-    pendingSheet.getRange(3, 8, newRows.length, 1).insertCheckboxes();
-    pendingSheet.getRange(3, 6, newRows.length, 1).setBackground(CONFIG.COLOR_YELLOW);
+  const currentFilter = pendingSheet.getRange("D1").getValue() || "All Team Members";
+  filterPendingDeskByEmployee(pendingSheet, currentFilter);
+}
     pendingSheet.getRange(3, 7, newRows.length, 1).setBackground("#F8FAFC");
     pendingSheet.getRange(3, 4, newRows.length, 1).setNumberFormat("dd/MM/yyyy");
   }
