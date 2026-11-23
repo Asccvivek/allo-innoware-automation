@@ -1070,7 +1070,7 @@ function applyAllSystemDropdowns() {
     // Clean up empty rows beyond targetArmedRow: completely wipe content & validations to prevent literal "FALSE"
     if (targetArmedRow < 50) {
       const numEmpty = 50 - targetArmedRow;
-      masterSheet.getRange(targetArmedRow + 1, 1, numEmpty, 14).clearContent().clearDataValidations();
+      masterSheet.getRange(targetArmedRow + 1, 1, numEmpty, 14).clearContent().clearDataValidations().removeCheckboxes();
     }
   }
 
@@ -1092,7 +1092,7 @@ function applyAllSystemDropdowns() {
       pendingSheet.getRange(3, 3, lastPendingRow - 2, 1).setDataValidation(valAssignee);
     }
     if (lastPendingRow < 50) {
-      pendingSheet.getRange(lastPendingRow + 1, 1, 50 - lastPendingRow, 8).clearContent().clearDataValidations();
+      pendingSheet.getRange(lastPendingRow + 1, 1, 50 - lastPendingRow, 8).clearContent().clearDataValidations().removeCheckboxes();
     }
   }
 
@@ -1119,7 +1119,7 @@ function applyAllSystemDropdowns() {
     }
     if (lastDashRow < 50) {
       const numEmptyDash = 50 - lastDashRow;
-      dashSheet.getRange(lastDashRow + 1, 6, numEmptyDash, 1).clearContent().clearDataValidations();
+      dashSheet.getRange(lastDashRow + 1, 6, numEmptyDash, 1).clearContent().clearDataValidations().removeCheckboxes();
       dashSheet.getRange(lastDashRow + 1, 8, numEmptyDash, 1).clearContent().clearDataValidations();
     }
   }
@@ -1315,6 +1315,18 @@ function autoGenerateTaskIdForRow_(sheet, row) {
   } catch (err) {}
 }
 
+/**
+ * Standard Simple Trigger for Google Sheets:
+ * Runs automatically on any user edit (even without explicit installable trigger permissions).
+ */
+function onEdit(e) {
+  try {
+    handleEdit(e);
+  } catch (err) {
+    Logger.log("Simple trigger onEdit handled gracefully: " + err.message);
+  }
+}
+
 function handleEdit(e) {
   if (!e || !e.range) return;
   const sheet = e.range.getSheet();
@@ -1444,7 +1456,11 @@ function handleEdit(e) {
         sheet.getRange(row, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
         sheet.getRange(row, 12).setValue("");
         // Immediately run overdue alert engine & stamp timestamp in Col L
-        checkOverdueAndEscalate();
+        try {
+          checkOverdueAndEscalate();
+        } catch (mailErr) {
+          Logger.log("Notice: Escalation email notification in edit trigger context: " + mailErr.message);
+        }
       }
       // Also refresh pending desk
       const pendingSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_PENDING);
@@ -2608,7 +2624,8 @@ function simulateOverdueForTesting() {
   yesterday.setHours(0, 0, 0, 0);
 
   masterSheet.getRange("H3").setValue(yesterday).setNumberFormat("dd/MM/yyyy");
-  masterSheet.getRange("J3:K3").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+  masterSheet.getRange(3, 10).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+  masterSheet.getRange(3, 11).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
   masterSheet.getRange("L3").setValue("");
 
   // Refresh pending desk
