@@ -1207,10 +1207,10 @@ function applyAllSystemDropdowns() {
     overviewSheet.getRange(33, 6, 7, 1).setDataValidation(valProof);
   }
 
-  // 5. Task_Completion_Log: Column C (Completed By / Assignee) Dropdown
+  // 5. Task_Completion_Log: Ensure NO restrictive dropdowns are enforced on historical append-only logs
   const logSheet = ss.getSheetByName(CONFIG.SHEET_LOG);
-  if (logSheet && logSheet.getLastRow() >= 2) {
-    logSheet.getRange(3, 3, 48, 1).setDataValidation(valAssignee);
+  if (logSheet) {
+    try { logSheet.getRange("A3:L500").clearDataValidations(); } catch (e) {}
   }
 
   Logger.log("Dynamic dropdown validations applied cleanly across all sheets and employee hub.");
@@ -1577,6 +1577,12 @@ function handleEdit(e) {
  */
 function ensurePendingDeskHeader_(pendingSheet) {
   if (!pendingSheet) return;
+  try {
+    const maxR = Math.min(pendingSheet.getMaxRows(), 50);
+    pendingSheet.unhideRow(pendingSheet.getRange(1, 1, maxR, 1));
+    pendingSheet.showRows(1, maxR);
+  } catch (e) {}
+  try { if (pendingSheet.getFilter()) pendingSheet.getFilter().remove(); } catch (e) {}
   const title = pendingSheet.getRange("A1").getValue();
   if (!title || String(title).trim() === "") {
     pendingSheet.getRange("A1:B1").merge().setValue("EMPLOYEE WORK DESK")
@@ -1609,6 +1615,12 @@ function filterPendingDeskByEmployee(pendingSheet, selectedEmployee) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (!masterSheet) return;
+
+  try {
+    const maxR = Math.min(pendingSheet.getMaxRows(), 50);
+    pendingSheet.unhideRow(pendingSheet.getRange(1, 1, maxR, 1));
+    pendingSheet.showRows(1, maxR);
+  } catch (e) {}
 
   ensurePendingDeskHeader_(pendingSheet);
 
@@ -2697,13 +2709,19 @@ function applySmartAutoIdFormulas() {
     master.getRange(r, 4).setFormula(`=IF(C${r}="","", IFERROR(VLOOKUP(C${r}, System_Overview_&_SLA!$A$33:$B$50, 2, FALSE), "Operations"))`).setHorizontalAlignment("left");
     
     // Col I: Auto Urgency Status
-    master.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
+    master.getRange(r, 9).setFormula(`=IF(AND(B${r}="", C${r}=""), "", IF(H${r}="", "DUE TODAY", IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE"))))`).setFontWeight("bold").setHorizontalAlignment("center");
     
-    // Interactive Checkboxes in Col J and K
-    master.getRange(r, 10).insertCheckboxes().setHorizontalAlignment("center");
-    master.getRange(r, 11).insertCheckboxes().setHorizontalAlignment("center");
-    if (master.getRange(r, 10).getValue() !== true) master.getRange(r, 10).setValue(false);
-    if (master.getRange(r, 11).getValue() !== true) master.getRange(r, 11).setValue(false);
+    // Check if task exists on this row
+    const taskEntered = master.getRange(r, 2).getValue() || master.getRange(r, 3).getValue();
+    if (taskEntered) {
+      if (!master.getRange(r, 10).getDataValidation()) {
+        master.getRange(r, 10).insertCheckboxes().setHorizontalAlignment("center");
+        master.getRange(r, 11).insertCheckboxes().setHorizontalAlignment("center");
+      }
+    } else {
+      master.getRange(r, 10).removeCheckboxes().clearContent();
+      master.getRange(r, 11).removeCheckboxes().clearContent();
+    }
   }
 
   // 2. Manager_Dashboard: Auto Mirror from Task_Master for Rows 7 to 50
@@ -2723,34 +2741,28 @@ function applySmartAutoIdFormulas() {
       ).setFontWeight("bold").setHorizontalAlignment("left");
     }
   }
-
-  // 2b. My_Pending_Tasks: Pure In-Sheet Live Filter Formula (0ms Latency for All Assigned Tasks)
-  const pending = ss.getSheetByName(CONFIG.SHEET_PENDING);
-  if (pending) {
-    pending.getRange("A3:H50").clearContent().clearDataValidations().removeCheckboxes();
-    pending.getRange("A3").setFormula(
-      `=IFERROR(FILTER({Task_Master!A3:C50, Task_Master!H3:I50}, Task_Master!A3:A50<>"", (Task_Master!C3:C50=D1)+(D1="All Team Members")+(D1="")), "")`
-    );
-    pending.getRange("A3:A50").setFontWeight("bold").setHorizontalAlignment("left");
-    pending.getRange("D3:D50").setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
-    pending.getRange("E3:E50").setFontWeight("bold").setHorizontalAlignment("center");
-    pending.getRange("F3:F50").setBackground(CONFIG.COLOR_YELLOW);
-    pending.getRange("G3:G50").setBackground("#F8FAFC");
-    pending.getRange("H3:H50").insertCheckboxes().setHorizontalAlignment("center");
-    for (let r = 3; r <= 15; r++) {
-      pending.getRange(r, 8).setValue(false);
-    }
-    pending.getRange("A2:H15").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
-  }
-
-  // 3. Re-apply all validations
-  applyAllSystemDropdowns();
 }
 
 function cleanSystemSheets() {
   verifySystemProvenance_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const now = new Date();
+
+  // 0. Comprehensive Unhide across ALL sheets (Restores any hidden rows/columns instantly)
+  const allSheets = ss.getSheets();
+  for (let s of allSheets) {
+    try {
+      const maxR = Math.min(s.getMaxRows(), 100);
+      s.unhideRow(s.getRange(1, 1, maxR, 1));
+      s.showRows(1, maxR);
+    } catch (e) {}
+    try {
+      const maxC = Math.min(s.getMaxColumns(), 26);
+      s.unhideColumn(s.getRange(1, 1, 1, maxC));
+      s.showColumns(1, maxC);
+    } catch (e) {}
+    try { if (s.getFilter()) s.getFilter().remove(); } catch (e) {}
+  }
 
   // 1. Sync Inboxes & Employee Directory on System_Overview_&_SLA
   const overview = ss.getSheetByName(CONFIG.SHEET_OVERVIEW);
@@ -2767,8 +2779,11 @@ function cleanSystemSheets() {
   // 2. Align Task_Master: Unhide all rows, clear filters, configure 1 Overdue & 3 On-Schedule
   const master = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (master) {
-    // Unhide any collapsed or hidden rows
-    try { master.showRows(1, master.getMaxRows()); } catch (e) {}
+    try {
+      const maxR = Math.min(master.getMaxRows(), 100);
+      master.unhideRow(master.getRange(1, 1, maxR, 1));
+      master.showRows(1, maxR);
+    } catch (e) {}
     try { if (master.getFilter()) master.getFilter().remove(); } catch (e) {}
 
     const dDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
@@ -2809,7 +2824,11 @@ function cleanSystemSheets() {
   // 3. Align Manager_Dashboard
   const dash = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
   if (dash) {
-    try { dash.showRows(1, dash.getMaxRows()); } catch (e) {}
+    try {
+      const maxR = Math.min(dash.getMaxRows(), 100);
+      dash.unhideRow(dash.getRange(1, 1, maxR, 1));
+      dash.showRows(1, maxR);
+    } catch (e) {}
     try { if (dash.getFilter()) dash.getFilter().remove(); } catch (e) {}
 
     // Row 7 (ALLO-OPS-101): Unacknowledged so Tier 1 4h Grace shows actively
@@ -2833,6 +2852,11 @@ function cleanSystemSheets() {
   // 4. Clean Task_Completion_Log: Remove duplicate entries & clear restrictive data validation
   const log = ss.getSheetByName(CONFIG.SHEET_LOG);
   if (log) {
+    try {
+      const maxR = Math.min(log.getMaxRows(), 100);
+      log.unhideRow(log.getRange(1, 1, maxR, 1));
+      log.showRows(1, maxR);
+    } catch (e) {}
     log.getRange("A3:L500").clearDataValidations();
     // Check if duplicate ALLO-OPS-101 exists in Row 4
     if (log.getLastRow() >= 4) {
@@ -2847,17 +2871,22 @@ function cleanSystemSheets() {
   // 5. Populate My_Pending_Tasks with permanent headers and filtered team tasks
   const pending = ss.getSheetByName(CONFIG.SHEET_PENDING);
   if (pending) {
+    try {
+      const maxR = Math.min(pending.getMaxRows(), 100);
+      pending.unhideRow(pending.getRange(1, 1, maxR, 1));
+      pending.showRows(1, maxR);
+    } catch (e) {}
     ensurePendingDeskHeader_(pending);
     filterPendingDeskByEmployee(pending, "All Team Members");
   }
 
-  // 6. Re-apply in-sheet smart formulas, dropdowns and column widths
+  // 6. Re-apply in-sheet smart formulas, dropdowns, and column widths
   applySmartAutoIdFormulas();
   applyAllSystemDropdowns();
   applyPerfectColumnWidths();
 
   try {
-    ss.toast("✨ System re-aligned: No duplicate logs, headers restored, and dual alerts active!", "Production Demo State Ready", 5);
+    ss.toast("✨ System re-aligned: All rows unhidden, no duplicate logs, headers restored, and dual alerts active!", "Production Demo State Ready", 5);
   } catch (e) {}
 }
 
