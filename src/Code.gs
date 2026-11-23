@@ -14,16 +14,16 @@ const CONFIG = {
   ARCHITECT_NAME: "Vivek Debnath",
   
   // Default Corporate Inboxes (Can be dynamically overridden sheet-wise by any tester/evaluator)
-  DEFAULT_MANAGER_EMAIL: "operations.manager@alloinnoware.com",
-  DEFAULT_LEADERSHIP_EMAIL: "founder@alloinnoware.com",
+  DEFAULT_MANAGER_EMAIL: "viknthdv@gmail.com",
+  DEFAULT_LEADERSHIP_EMAIL: "vivekdvnath@gmail.com",
   HR_SUBMISSION_EMAIL: "hr.ops.allo@gmail.com",
   
   // Enterprise Departmental Inboxes for Each Team Member
   EMPLOYEE_EMAILS: {
-    "Rohan Sharma": "rohan.logistics@alloinnoware.com",
-    "Priya Patel": "priya.cx@alloinnoware.com",
-    "Ankit Verma": "ankit.ecommerce@alloinnoware.com",
-    "Sneha Kulkarni": "sneha.supplychain@alloinnoware.com"
+    "Rohan Sharma": "asccvivek@gmail.com",
+    "Priya Patel": "hokob82428@anonmart.com",
+    "Ankit Verma": "vaidm7oedd@ruutukf.com",
+    "Sneha Kulkarni": "hqcytau@mailto.plus"
   },
 
   ESCALATE_AFTER_HOURS: 4,                              // Grace period: Level 2 escalation fires 4h after manager alert if unacknowledged
