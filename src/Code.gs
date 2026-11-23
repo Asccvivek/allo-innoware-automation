@@ -995,7 +995,7 @@ function applyTaskRowValidations_(sheet, row) {
   const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control", "Operations", "[Select Department]"];
   const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Monthly (30 Days)"];
   const cadenceDays = ["1", "7", "15", "30"];
-  const cutoffs = ["17:00 IST", "18:00 IST", "19:00 IST", "20:00 IST"];
+  const cutoffs = ["10:00 IST", "12:00 IST", "14:00 IST", "15:00 IST", "16:00 IST", "17:00 IST", "18:00 IST", "19:00 IST", "20:00 IST", "21:00 IST", "22:00 IST", "23:59 IST"];
 
   const valAssignee = SpreadsheetApp.newDataValidation().requireValueInList(teamMembers, true).setAllowInvalid(true).build();
   const valDept = SpreadsheetApp.newDataValidation().requireValueInList(departments, true).setAllowInvalid(true).build();
@@ -1022,7 +1022,7 @@ function applyAllSystemDropdowns() {
   const departments = ["Logistics", "Customer Experience", "E-Commerce Ops", "Supply Chain", "Finance", "Quality Control", "Operations", "[Select Department]"];
   const frequencies = ["Daily (Mon-Sat)", "Weekly (7 Days)", "Fortnightly (15 Days)", "Monthly (30 Days)"];
   const cadenceDays = ["1", "7", "15", "30"];
-  const cutoffs = ["17:00 IST", "18:00 IST", "19:00 IST", "20:00 IST"];
+  const cutoffs = ["10:00 IST", "12:00 IST", "14:00 IST", "15:00 IST", "16:00 IST", "17:00 IST", "18:00 IST", "19:00 IST", "20:00 IST", "21:00 IST", "22:00 IST", "23:59 IST"];
   const managerNotes = [
     "Reviewing with staff", 
     "Awaiting courier API sync", 
