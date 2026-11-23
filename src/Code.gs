@@ -1092,6 +1092,7 @@ function applyAllSystemDropdowns() {
       masterSheet.getRange(3, 6, numArmed, 1).setDataValidation(valCadence);
       masterSheet.getRange(3, 7, numArmed, 1).setDataValidation(valCutoff);
       masterSheet.getRange(3, 8, numArmed, 1).setDataValidation(valDate);
+      masterSheet.getRange(3, 10, numArmed, 2).insertCheckboxes().setHorizontalAlignment("center");
     }
 
     // Clean up empty rows beyond targetArmedRow: wipe all floating dropdown arrows
@@ -1286,8 +1287,7 @@ function autoGenerateTaskIdForRow_(sheet, row) {
   }
   const statusCell = sheet.getRange(row, 9);
   statusCell.setFormula(`=IF(H${row}="","",IF(NOW()>H${row}+IFERROR(TIMEVALUE(LEFT(G${row},5)),1),"OVERDUE",IF(H${row}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
-  sheet.getRange(row, 10).setValue(false);
-  sheet.getRange(row, 11).setValue(false);
+  sheet.getRange(row, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
   
   // Set Assigned / Created At (Col 13) and Assigned / Created By (Col 14)
   const createdAtCell = sheet.getRange(row, 13);
@@ -2769,8 +2769,7 @@ function addNewRecurringTask() {
   masterSheet.getRange(nextRow, 7).setValue("19:00 IST").setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 8).setValue(d0).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 9).setFormula(`=IF(H${nextRow}="","",IF(NOW()>H${nextRow}+IFERROR(TIMEVALUE(LEFT(G${nextRow},5)),1),"OVERDUE",IF(H${nextRow}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
-  masterSheet.getRange(nextRow, 10).setValue(false);
-  masterSheet.getRange(nextRow, 11).setValue(false);
+  masterSheet.getRange(nextRow, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 12).setValue("").setNumberFormat("dd/MM/yyyy HH:mm:ss");
 
   const nowTs = Utilities.formatDate(new Date(), "Asia/Kolkata", "dd/MM/yyyy HH:mm:ss");
