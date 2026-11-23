@@ -226,7 +226,8 @@ function parseDateRobust_(val) {
 // 1. MASTER BUILD & INITIALIZATION ENGINE
 // ----------------------------------------------------------------------------
 function runFullSystemBuildWithoutPrompt() {
-  buildAlloOperationsSystem(true);
+  cleanSystemSheets();
+  runAllAutomatedTests();
 }
 
 function buildAlloOperationsSystem(skipConfirmation = true) {
