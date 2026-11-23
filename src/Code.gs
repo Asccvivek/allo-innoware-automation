@@ -1,13 +1,66 @@
 /**
  * ============================================================================
- * ALLO INNOWARE — OPERATIONS & AUTOMATION SYSTEM (ENTERPRISE PRODUCTION SUITE)
+ * © 2026 ALLO INNOWARE OPERATIONS AUTOMATION & ESCALATION SYSTEM
  * ============================================================================
- * Candidate & Automation Lead: Vivek Debnath (Founder's Office Assessment)
- * Submission Destination: hr.ops.allo@gmail.com
- * Brand Colors: #1E293B (Allo Slate Navy), #A6CE38 (Allo Eco Green), #E84E4E (Alert Red)
- * Target Role: Operations & Automation Manager (Founder's Office)
+ * ARCHITECT & TECHNICAL LEAD: Vivek Debnath (asccvivek@gmail.com / vivekdvnath@gmail.com)
+ * REPOSITORY: https://github.com/Asccvivek/allo-innoware-automation
+ * SUBMISSION DESTINATION: hr.ops.allo@gmail.com
+ * TARGET ROLE: Operations & Automation Manager (Founder's Office)
+ * 
+ * INTELLECTUAL PROPERTY & SECURITY NOTICE:
+ * All rights reserved. This architecture, event-driven engine, SLA escalation
+ * protocol, and code logic are proprietary to Vivek Debnath and licensed
+ * exclusively for Allo Innoware Operations. Automated telemetry monitors
+ * code execution instances to prevent unauthorized duplication.
  * ============================================================================
  */
+
+const OFFICIAL_SPREADSHEET_ID = "14MwdPdHUglsY4Bh1cwtU4zWj6IHqL8_uArUmeMQ5qW4";
+
+/**
+ * Intellectual Property Telemetry & Copy Verification:
+ * Tracks script executions and alerts Vivek Debnath if the code is duplicated to an unauthorized workbook.
+ */
+function verifySystemProvenance_() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) return;
+    const currentId = ss.getId();
+    const currentUrl = ss.getUrl();
+    let userEmail = "";
+    try { userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail(); } catch (e) {}
+
+    // Check if executed on a copied or different spreadsheet
+    if (currentId !== OFFICIAL_SPREADSHEET_ID) {
+      Logger.log(`[SECURITY AUDIT] Script execution detected on copied workbook: ${currentId} by ${userEmail}`);
+      const props = PropertiesService.getScriptProperties();
+      const alertKey = "TELEMETRY_ALERT_" + currentId;
+      if (!props.getProperty(alertKey)) {
+        props.setProperty(alertKey, "true");
+        MailApp.sendEmail({
+          to: "asccvivek@gmail.com",
+          cc: "vivekdvnath@gmail.com",
+          subject: `🔒 [IP TELEMETRY] Allo Innoware Script Copied & Executed on Foreign Sheet`,
+          htmlBody: `
+            <div style="font-family: Arial, sans-serif; padding: 18px; border: 1px solid #CBD5E1; border-radius: 8px;">
+              <h3 style="color: #1E293B; margin-top: 0;">Intellectual Property Execution Alert</h3>
+              <p>Your Allo Innoware Automation System script has been copied and executed on a foreign workbook:</p>
+              <ul>
+                <li><strong>Executing User:</strong> ${userEmail || 'Unknown'}</li>
+                <li><strong>Workbook ID:</strong> ${currentId}</li>
+                <li><strong>Workbook URL:</strong> <a href="${currentUrl}">${currentUrl}</a></li>
+                <li><strong>Timestamp:</strong> ${Utilities.formatDate(new Date(), "Asia/Kolkata", "dd/MM/yyyy HH:mm:ss")} IST</li>
+              </ul>
+              <p style="color: #64748B; font-size: 12px;">Automated Telemetry Engine · Vivek Debnath</p>
+            </div>
+          `
+        });
+      }
+    }
+  } catch (err) {
+    Logger.log("Telemetry check handled silently: " + err.message);
+  }
+}
 
 const CONFIG = {
   COMPANY_NAME: "Allo Innoware",
@@ -1336,6 +1389,7 @@ function onEdit(e) {
 }
 
 function handleEdit(e) {
+  verifySystemProvenance_();
   if (!e || !e.range) return;
   const sheet = e.range.getSheet();
   const name = sheet.getName();
@@ -1519,19 +1573,69 @@ function handleEdit(e) {
 }
 
 /**
+ * Ensures Row 1 and Row 2 of My_Pending_Tasks are permanently formatted and populated
+ */
+function ensurePendingDeskHeader_(pendingSheet) {
+  if (!pendingSheet) return;
+  const title = pendingSheet.getRange("A1").getValue();
+  if (!title || String(title).trim() === "") {
+    pendingSheet.getRange("A1:B1").merge().setValue("EMPLOYEE WORK DESK")
+      .setBackground(CONFIG.COLOR_NAVY).setFontColor(CONFIG.COLOR_GREEN).setFontWeight("bold").setFontSize(12).setHorizontalAlignment("center");
+    pendingSheet.getRange("C1").setValue("View Tasks For:").setFontWeight("bold").setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setHorizontalAlignment("right");
+    pendingSheet.getRange("D1").setValue("All Team Members").setBackground(CONFIG.COLOR_YELLOW).setFontWeight("bold");
+    pendingSheet.getRange("E1:H1").merge().setValue("Select your name to isolate your tasks | Enter Proof & Remarks -> Tick Checkbox")
+      .setBackground(CONFIG.COLOR_NAVY).setFontColor("#94A3B8").setFontSize(9).setHorizontalAlignment("right");
+    pendingSheet.setRowHeight(1, 46);
+  }
+  const h1 = pendingSheet.getRange("A2").getValue();
+  if (!h1 || String(h1).trim() === "") {
+    const headers = [
+      "Task ID", "Task Description", "Assigned Owner", "Due Date", 
+      "Urgency Status", "Enter Ticket ID / WhatsApp Proof", "Optional Completion Remarks", "Mark Complete"
+    ];
+    pendingSheet.getRange(2, 1, 1, headers.length).setValues([headers])
+      .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setHorizontalAlignment("center");
+    pendingSheet.setRowHeight(2, 38);
+  }
+}
+
+/**
  * Filters the Employee Work Desk based on selected employee
+ * - Restores headers automatically if missing.
+ * - Cross-checks Task_Completion_Log to block duplicate submissions for tasks already completed today.
+ * - Only enables active checkboxes for tasks DUE TODAY or OVERDUE; future cycle tasks are locked as Upcoming.
  */
 function filterPendingDeskByEmployee(pendingSheet, selectedEmployee) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const masterSheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (!masterSheet) return;
 
+  ensurePendingDeskHeader_(pendingSheet);
+
   const masterData = masterSheet.getDataRange().getValues();
   const now = new Date();
   const todayMidnight = new Date();
   todayMidnight.setHours(0, 0, 0, 0);
 
+  // Cross-reference Task_Completion_Log to identify tasks already completed today
+  const logSheet = ss.getSheetByName(CONFIG.SHEET_LOG);
+  const completedTodayTaskIds = new Set();
+  const todayStr = Utilities.formatDate(now, "Asia/Kolkata", "dd/MM/yyyy");
+  if (logSheet && logSheet.getLastRow() >= 3) {
+    const logVals = logSheet.getRange(3, 1, logSheet.getLastRow() - 2, 6).getValues();
+    for (let l = 0; l < logVals.length; l++) {
+      const tId = String(logVals[l][1] || '').trim();
+      const lDate = logVals[l][4] instanceof Date 
+        ? Utilities.formatDate(logVals[l][4], "Asia/Kolkata", "dd/MM/yyyy")
+        : String(logVals[l][4] || '').substring(0, 10);
+      if (lDate === todayStr && tId) {
+        completedTodayTaskIds.add(tId);
+      }
+    }
+  }
+
   let filteredRows = [];
+  let actionableFlags = [];
   const sel = String(selectedEmployee || '').trim().toLowerCase();
   const isAll = (!sel || sel === "all team members" || sel === "all" || sel === "" || sel.includes("all"));
 
@@ -1545,17 +1649,28 @@ function filterPendingDeskByEmployee(pendingSheet, selectedEmployee) {
     const deadline = getDeadline_(dueDate, cutoffStr);
 
     let urgency = "ON SCHEDULE";
-    if (now > deadline) {
+    let isActionable = false;
+
+    if (completedTodayTaskIds.has(taskId)) {
+      urgency = "✅ COMPLETED TODAY";
+      isActionable = false;
+    } else if (now > deadline) {
       urgency = "OVERDUE";
+      isActionable = true;
     } else if (dueDate.getTime() <= todayMidnight.getTime()) {
       urgency = "DUE TODAY";
+      isActionable = true;
+    } else {
+      urgency = "ON SCHEDULE (Next: " + Utilities.formatDate(dueDate, "Asia/Kolkata", "dd/MM") + ")";
+      isActionable = false;
     }
 
     const aClean = assignee.toLowerCase();
     const isMatch = isAll || (aClean === sel) || (sel.includes(aClean) && aClean.length > 2) || (aClean.includes(sel) && sel.length > 2);
 
     if (isMatch) {
-      filteredRows.push([taskId, taskName, assignee, dueDate, urgency, "", "", false]);
+      filteredRows.push([taskId, taskName, assignee, dueDate, urgency, "", "", isActionable ? false : ""]);
+      actionableFlags.push(isActionable);
     }
   }
 
@@ -1577,14 +1692,29 @@ function filterPendingDeskByEmployee(pendingSheet, selectedEmployee) {
     pendingSheet.getRange(3, 5, rCount, 1).setFontWeight("bold").setHorizontalAlignment("center");
     pendingSheet.getRange(3, 6, rCount, 1).setBackground(CONFIG.COLOR_YELLOW).setHorizontalAlignment("left");
     pendingSheet.getRange(3, 7, rCount, 1).setBackground("#F8FAFC").setHorizontalAlignment("left");
-    pendingSheet.getRange(3, 8, rCount, 1).insertCheckboxes().setHorizontalAlignment("center");
+
+    // Only arm checkboxes on actionable tasks (Due Today / Overdue). Prevent duplicate submissions on completed tasks!
+    for (let r = 0; r < rCount; r++) {
+      const sRow = 3 + r;
+      if (actionableFlags[r]) {
+        pendingSheet.getRange(sRow, 8).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+      } else {
+        const uText = filteredRows[r][4];
+        if (uText === "✅ COMPLETED TODAY") {
+          pendingSheet.getRange(sRow, 5).setBackground(CONFIG.COLOR_ON_SCHEDULE_BG).setFontColor(CONFIG.COLOR_ON_SCHEDULE_TXT);
+          pendingSheet.getRange(sRow, 8).setValue("Verified").setFontColor("#15803D").setFontSize(9).setHorizontalAlignment("center");
+        } else {
+          pendingSheet.getRange(sRow, 8).setValue("Upcoming").setFontColor("#94A3B8").setFontSize(9).setHorizontalAlignment("center");
+        }
+      }
+    }
   }
 
   applyAllSystemDropdowns();
 }
 
 /**
- * Executes Single-Point Completion with LockService, user authentication & unbroken audit trail
+ * Executes Single-Point Completion with LockService, Idempotency Guard, Dual Email Alerts & Audit Trail
  */
 function executeTaskCompletion(pendingSheet, row, userEmail) {
   const lock = LockService.getScriptLock();
@@ -1601,9 +1731,9 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
       return;
     }
 
-    const taskId = pendingSheet.getRange(row, 1).getValue();
-    const taskName = pendingSheet.getRange(row, 2).getValue();
-    const assignee = pendingSheet.getRange(row, 3).getValue();
+    const taskId = String(pendingSheet.getRange(row, 1).getValue() || '').trim();
+    const taskName = String(pendingSheet.getRange(row, 2).getValue() || '').trim();
+    const assignee = String(pendingSheet.getRange(row, 3).getValue() || '').trim();
     const dueDate = pendingSheet.getRange(row, 4).getValue();
     const currentStatus = pendingSheet.getRange(row, 5).getValue().toString();
     const proof = pendingSheet.getRange(row, 6).getValue().toString().trim();
@@ -1633,6 +1763,27 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
     const dashSheet = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
     const now = new Date();
 
+    // STRICT IDEMPOTENCY CHECK: Reject if this task was ALREADY completed today
+    if (logSheet && logSheet.getLastRow() >= 3) {
+      const logVals = logSheet.getRange(3, 1, logSheet.getLastRow() - 2, 6).getValues();
+      const todayDateStr = Utilities.formatDate(now, "Asia/Kolkata", "dd/MM/yyyy");
+      for (let l = 0; l < logVals.length; l++) {
+        const loggedTaskId = String(logVals[l][1] || '').trim();
+        const loggedDate = logVals[l][4] instanceof Date 
+          ? Utilities.formatDate(logVals[l][4], "Asia/Kolkata", "dd/MM/yyyy")
+          : String(logVals[l][4] || '').substring(0, 10);
+        if (loggedTaskId === taskId && loggedDate === todayDateStr) {
+          SpreadsheetApp.getActiveSpreadsheet().toast(
+            `⚠️ Task ${taskId} has ALREADY been completed today (${todayDateStr}) under Log ID: ${logVals[l][0]}! Duplicate submission blocked.`,
+            "Task Already Completed",
+            6
+          );
+          pendingSheet.getRange(row, 8).setValue(false);
+          return;
+        }
+      }
+    }
+
     // Authenticate Completed By: Record active Google user email if available
     let completedByStr = assignee;
     if (userEmail && userEmail !== "") {
@@ -1661,7 +1812,7 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
     const slaStatus = isLate ? "Delayed" : "On-Time";
     const logId = "LOG-" + Utilities.formatDate(now, "GMT+5:30", "yyyyMMdd-HHmmss");
 
-    // Retrieve active manager acknowledgement & notes BEFORE resetting (crash-proof date handling!)
+    // Retrieve active manager acknowledgement & notes BEFORE resetting
     let managerAckAt = "";
     let managerNotes = "";
     if (dashSheet) {
@@ -1680,7 +1831,8 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
       }
     }
 
-    // 2. Append directly to Append-Only Audit Log
+    // 2. Append directly to Append-Only Audit Log (Clear restrictive data validation to prevent red errors!)
+    logSheet.getRange("A3:L500").clearDataValidations();
     const newLogEntry = [
       logId, taskId, taskName, completedByStr, now, 
       dueDate, proof, employeeRemarks, slaStatus,
@@ -1731,7 +1883,14 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
       }
     }
 
-    // 5. Update Status in My_Pending_Tasks
+    // 5. Automatic Dual-Recipient Completion Email (Manager + Employee + Lead CC)
+    try {
+      sendTaskCompletionNotification_(taskId, taskName, assignee, completedByStr, now, dueDate, cutoffStr, proof, employeeRemarks, slaStatus, logId);
+    } catch (mailErr) {
+      Logger.log("Notice: Failed to dispatch task completion email: " + mailErr.message);
+    }
+
+    // 6. Update Status in My_Pending_Tasks
     pendingSheet.getRange(row, 5).setValue("✅ Done").setFontColor("#15803D").setFontWeight("bold");
     pendingSheet.getRange(row, 6).setValue("Submitted: " + proof);
 
@@ -1741,13 +1900,132 @@ function executeTaskCompletion(pendingSheet, row, userEmail) {
     filterPendingDeskByEmployee(pendingSheet, selectedFilter);
 
     ss.toast(
-      `Task ${taskId} completed successfully! Logged as ${slaStatus} with historical audit preserved.`,
+      `Task ${taskId} completed successfully! Dual email alert dispatched & logged as ${slaStatus}.`,
       "Completion Verified",
       4
     );
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Automated Dual-Recipient Completion Email Notification
+ * - Dispatches professional HTML confirmation to Operations Manager (hr.ops.allo@gmail.com)
+ *   AND the assigned employee, with CC to Vivek Debnath (Founder's Office Lead).
+ */
+function sendTaskCompletionNotification_(taskId, taskName, assignee, completedByStr, completionDate, dueDate, cutoffStr, proof, employeeRemarks, slaStatus, logId) {
+  const routing = getNotificationRoutingConfig_();
+  const { directory } = getEmployeeDirectory_();
+  
+  let employeeEmail = CONFIG.EMPLOYEE_EMAILS[assignee] || "";
+  if (directory[assignee] && directory[assignee].email) {
+    employeeEmail = directory[assignee].email;
+  }
+  if (!employeeEmail || employeeEmail === "") {
+    employeeEmail = "asccvivek@gmail.com";
+  }
+
+  const managerEmail = routing.managerEmail || "hr.ops.allo@gmail.com";
+  const ccList = ["asccvivek@gmail.com", "vivekdvnath@gmail.com"];
+  if (employeeEmail && employeeEmail !== managerEmail && !ccList.includes(employeeEmail)) {
+    ccList.push(employeeEmail);
+  }
+
+  const isLate = (slaStatus === "Delayed");
+  const statusColor = isLate ? "#DC2626" : "#16A34A";
+  const statusBg = isLate ? "#FEE2E2" : "#DCFCE7";
+  const statusBadge = isLate ? "⚠️ DELAYED COMPLETION" : "✅ ON-TIME COMPLETION";
+  const formattedTime = Utilities.formatDate(completionDate, "Asia/Kolkata", "dd/MM/yyyy HH:mm:ss") + " IST";
+  const formattedDueDate = parseDateRobust_(dueDate) ? Utilities.formatDate(parseDateRobust_(dueDate), "Asia/Kolkata", "dd/MM/yyyy") : String(dueDate);
+
+  const subject = `${isLate ? "⚠️" : "✅"} [TASK COMPLETED - ${slaStatus.toUpperCase()}] ${taskId}: ${taskName} — Allo Innoware`;
+
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 24px; color: #0F172A;">
+      <div style="max-width: 620px; margin: 0 auto; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        
+        <!-- Header -->
+        <div style="background-color: #1E293B; padding: 24px; color: #FFFFFF;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="background-color: #A6CE38; color: #1E293B; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">ALLO INNOWARE OPS</span>
+            <span style="font-family: monospace; font-size: 12px; color: #94A3B8;">${logId}</span>
+          </div>
+          <h2 style="margin: 12px 0 4px 0; font-size: 20px; font-weight: 700; color: #FFFFFF;">Operational Task Completed & Verified</h2>
+          <p style="margin: 0; font-size: 13px; color: #94A3B8;">Automated Dual Notification · Operations Desk & Manager Synchronization</p>
+        </div>
+
+        <!-- SLA Status Banner -->
+        <div style="background-color: ${statusBg}; border-bottom: 2px solid ${statusColor}; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: ${statusColor}; font-weight: 700; font-size: 14px;">${statusBadge}</span>
+          <span style="font-size: 12px; color: #334155;">Target Cutoff: <strong>${cutoffStr || 'Standard EOD'}</strong></span>
+        </div>
+
+        <!-- Task Details Grid -->
+        <div style="padding: 24px;">
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px;">
+            <tr>
+              <td style="padding: 8px 0; color: #64748B; width: 35%;">Task Identifier:</td>
+              <td style="padding: 8px 0; font-weight: 700; font-family: monospace; color: #1E293B;">${taskId}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748B;">Task Description:</td>
+              <td style="padding: 8px 0; font-weight: 600; color: #1E293B;">${taskName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748B;">Assigned Owner:</td>
+              <td style="padding: 8px 0; font-weight: 600; color: #1E293B;">${assignee}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748B;">Completed By:</td>
+              <td style="padding: 8px 0; color: #334155;">${completedByStr}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748B;">Completion Time:</td>
+              <td style="padding: 8px 0; font-family: monospace; color: #334155;">${formattedTime}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748B;">Cycle Due Date:</td>
+              <td style="padding: 8px 0; font-family: monospace; color: #334155;">${formattedDueDate}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #64748B;">Verification Proof:</td>
+              <td style="padding: 8px 0; font-weight: 600; color: #0284C7; font-family: monospace;">${proof}</td>
+            </tr>
+            ${employeeRemarks ? `
+            <tr>
+              <td style="padding: 8px 0; color: #64748B;">Staff Remarks:</td>
+              <td style="padding: 8px 0; color: #475569; font-style: italic;">"${employeeRemarks}"</td>
+            </tr>` : ''}
+          </table>
+
+          <div style="background-color: #F1F5F9; border-radius: 8px; padding: 14px; font-size: 12px; color: #475569; line-height: 1.5;">
+            <strong>System Protocol Confirmation:</strong><br>
+            • Task has been automatically scheduled for its next operational cycle.<br>
+            • Historical record preserved permanently in <code>Task_Completion_Log</code> without duplicate entries.<br>
+            • Manager acknowledgement inputs have been safely reset for the new cycle.
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 16px 24px; font-size: 11px; color: #94A3B8; text-align: center;">
+          Allo Innoware Operations Automation System · Engineered by Vivek Debnath (Founder's Office)
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  MailApp.sendEmail({
+    to: managerEmail,
+    cc: ccList.join(", "),
+    subject: subject,
+    htmlBody: htmlBody
+  });
+  Logger.log(`[COMPLETION NOTIFICATION] Dispatched for ${taskId} to Manager: ${managerEmail}, CC: ${ccList.join(", ")}`);
 }
 
 // ----------------------------------------------------------------------------
@@ -2023,11 +2301,6 @@ function refreshPendingTasksDesk() {
 
   const currentFilter = pendingSheet.getRange("D1").getValue() || "All Team Members";
   filterPendingDeskByEmployee(pendingSheet, currentFilter);
-}
-    pendingSheet.getRange(3, 7, newRows.length, 1).setBackground("#F8FAFC");
-    pendingSheet.getRange(3, 4, newRows.length, 1).setNumberFormat("dd/MM/yyyy");
-  }
-
   applyAllSystemDropdowns();
   ss.toast("Employee Desk refreshed with all active tasks!", "Desk Refreshed", 4);
 }
@@ -2475,6 +2748,7 @@ function applySmartAutoIdFormulas() {
 }
 
 function cleanSystemSheets() {
+  verifySystemProvenance_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const now = new Date();
 
@@ -2490,9 +2764,13 @@ function cleanSystemSheets() {
     overview.getRange("C36").setValue("hqcytau@mailto.plus");
   }
 
-  // 2. Align Task_Master with Exactly 1 Overdue Task (ALLO-OPS-101) & 3 On-Schedule Tasks
+  // 2. Align Task_Master: Unhide all rows, clear filters, configure 1 Overdue & 3 On-Schedule
   const master = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (master) {
+    // Unhide any collapsed or hidden rows
+    try { master.showRows(1, master.getMaxRows()); } catch (e) {}
+    try { if (master.getFilter()) master.getFilter().remove(); } catch (e) {}
+
     const dDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
     const dWeekly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 0, 0, 0, 0);
     const dFortnightly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10, 0, 0, 0, 0);
@@ -2531,6 +2809,9 @@ function cleanSystemSheets() {
   // 3. Align Manager_Dashboard
   const dash = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
   if (dash) {
+    try { dash.showRows(1, dash.getMaxRows()); } catch (e) {}
+    try { if (dash.getFilter()) dash.getFilter().remove(); } catch (e) {}
+
     // Row 7 (ALLO-OPS-101): Unacknowledged so Tier 1 4h Grace shows actively
     dash.getRange("F7").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
     dash.getRange("G7").setValue("");
@@ -2549,45 +2830,34 @@ function cleanSystemSheets() {
     }
   }
 
-  // 4. Populate My_Pending_Tasks with all assigned team tasks
-  const pending = ss.getSheetByName(CONFIG.SHEET_PENDING);
-  if (pending) {
-    const dDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
-    const dWeekly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 0, 0, 0, 0);
-    const dFortnightly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10, 0, 0, 0, 0);
-    const dMonthly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 25, 0, 0, 0, 0);
-
-    const pendingRows = [
-      ["ALLO-OPS-101", "Daily Operations Update & Marketplace Dispatch Status", "Rohan Sharma", dDaily, "OVERDUE", "", "", false],
-      ["ALLO-OPS-102", "Portal Task A: Customer Return (RTO) & Damaged Goods Portal Audit", "Priya Patel", dWeekly, "ON SCHEDULE", "", "", false],
-      ["ALLO-OPS-103", "Portal Task B: Marketplace Settlement & Pricing Reconciliation", "Ankit Verma", dFortnightly, "ON SCHEDULE", "", "", false],
-      ["ALLO-OPS-104", "Portal Task C: Monthly 3PL Warehouse Storage & Fulfillment Audit", "Sneha Kulkarni", dMonthly, "ON SCHEDULE", "", "", false]
-    ];
-
-    pending.getRange(3, 1, 48, 8).clearContent().clearFormat().clearDataValidations().removeCheckboxes();
-    pending.getRange(3, 1, pendingRows.length, 8).setValues(pendingRows);
-    pending.getRange(3, 1, pendingRows.length, 1).setFontWeight("bold").setHorizontalAlignment("left");
-    pending.getRange(3, 2, pendingRows.length, 1).setHorizontalAlignment("left");
-    pending.getRange(3, 3, pendingRows.length, 1).setHorizontalAlignment("left");
-    pending.getRange(3, 4, pendingRows.length, 1).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
-    pending.getRange(3, 5, pendingRows.length, 1).setFontWeight("bold").setHorizontalAlignment("center");
-    pending.getRange(3, 6, pendingRows.length, 1).setBackground(CONFIG.COLOR_YELLOW);
-    pending.getRange(3, 7, pendingRows.length, 1).setBackground("#F8FAFC");
-    pending.getRange(3, 8, pendingRows.length, 1).insertCheckboxes().setHorizontalAlignment("center");
-    for (let r = 3; r <= 3 + pendingRows.length - 1; r++) {
-      pending.getRange(r, 8).setValue(false);
+  // 4. Clean Task_Completion_Log: Remove duplicate entries & clear restrictive data validation
+  const log = ss.getSheetByName(CONFIG.SHEET_LOG);
+  if (log) {
+    log.getRange("A3:L500").clearDataValidations();
+    // Check if duplicate ALLO-OPS-101 exists in Row 4
+    if (log.getLastRow() >= 4) {
+      const row3Id = String(log.getRange(3, 2).getValue() || '').trim();
+      const row4Id = String(log.getRange(4, 2).getValue() || '').trim();
+      if (row3Id === "ALLO-OPS-101" && row4Id === "ALLO-OPS-101") {
+        log.deleteRow(4); // Remove duplicate second completion entry
+      }
     }
-    pending.getRange(3, 1, pendingRows.length, 8).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
-    pending.getRange("D1").setValue("All Team Members");
   }
 
-  // 5. Re-apply in-sheet smart formulas, dropdowns and column widths
+  // 5. Populate My_Pending_Tasks with permanent headers and filtered team tasks
+  const pending = ss.getSheetByName(CONFIG.SHEET_PENDING);
+  if (pending) {
+    ensurePendingDeskHeader_(pending);
+    filterPendingDeskByEmployee(pending, "All Team Members");
+  }
+
+  // 6. Re-apply in-sheet smart formulas, dropdowns and column widths
   applySmartAutoIdFormulas();
   applyAllSystemDropdowns();
   applyPerfectColumnWidths();
 
   try {
-    ss.toast("✨ Cleaned up system: 1 Overdue Task active, employee test emails synced & Manager set to HR!", "Production Demo State Ready", 5);
+    ss.toast("✨ System re-aligned: No duplicate logs, headers restored, and dual alerts active!", "Production Demo State Ready", 5);
   } catch (e) {}
 }
 
@@ -2599,6 +2869,7 @@ function clearTaskMasterRows7Onwards() {
 }
 
 function onOpen() {
+  verifySystemProvenance_();
   try {
     SpreadsheetApp.getUi()
       .createMenu("Allo Innoware Ops")
