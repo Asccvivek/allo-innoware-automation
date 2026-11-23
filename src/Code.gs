@@ -2428,26 +2428,50 @@ function testAutoTaskGenerationRow7() {
 
 function applySmartAutoIdFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEET_MASTER);
-  if (!sheet) return;
-  sheet.setFrozenRows(2);
-  sheet.getRange(7, 1, 44, 12).clearContent();
-  sheet.getRange("A3:A50").setHorizontalAlignment("left").setFontWeight("bold");
-  sheet.getRange("B3:B50").setHorizontalAlignment("left");
-  sheet.getRange("C3:C50").setHorizontalAlignment("left");
-  sheet.getRange("D3:D50").setHorizontalAlignment("left");
-  sheet.getRange("E3:E50").setHorizontalAlignment("left");
-  sheet.getRange("F3:F50").setHorizontalAlignment("center");
-  sheet.getRange("G3:G50").setHorizontalAlignment("center");
-  sheet.getRange("H3:H50").setHorizontalAlignment("center");
-  sheet.getRange("I3:I50").setHorizontalAlignment("center");
-  sheet.getRange("J3:J50").setHorizontalAlignment("center");
-  sheet.getRange("K3:K50").setHorizontalAlignment("center");
-  sheet.getRange("L3:L50").setHorizontalAlignment("center");
-  for (let r = 7; r <= 30; r++) {
-    sheet.getRange(r, 1).setFormula(`=IF(B${r}="","", "ALLO-OPS-" & (100 + ${r} - 2))`).setFontWeight("bold").setHorizontalAlignment("left");
-    sheet.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
+  const master = ss.getSheetByName(CONFIG.SHEET_MASTER);
+  if (!master) return;
+
+  const dash = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+
+  // 1. Task_Master: In-Sheet Pure Formulas for 0ms Instant Response on New Rows
+  for (let r = 7; r <= 50; r++) {
+    // Col A: Auto Task ID the instant Task Description or Assignee is entered
+    master.getRange(r, 1).setFormula(`=IF(AND(B${r}="", C${r}=""), "", "ALLO-OPS-" & (100 + ${r} - 2))`).setFontWeight("bold").setHorizontalAlignment("left");
+    
+    // Col D: Auto Department Lookup from System_Overview_&_SLA based on Assignee
+    master.getRange(r, 4).setFormula(`=IF(C${r}="","", IFERROR(VLOOKUP(C${r}, System_Overview_&_SLA!$A$33:$B$50, 2, FALSE), "Operations"))`).setHorizontalAlignment("left");
+    
+    // Col I: Auto Urgency Status
+    master.getRange(r, 9).setFormula(`=IF(H${r}="","",IF(NOW()>H${r}+IFERROR(TIMEVALUE(LEFT(G${r},5)),1),"OVERDUE",IF(H${r}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
+    
+    // Interactive Checkboxes in Col J and K
+    master.getRange(r, 10).insertCheckboxes().setHorizontalAlignment("center");
+    master.getRange(r, 11).insertCheckboxes().setHorizontalAlignment("center");
+    if (master.getRange(r, 10).getValue() !== true) master.getRange(r, 10).setValue(false);
+    if (master.getRange(r, 11).getValue() !== true) master.getRange(r, 11).setValue(false);
   }
+
+  // 2. Manager_Dashboard: Auto Mirror from Task_Master for Rows 7 to 50
+  if (dash) {
+    for (let r = 7; r <= 50; r++) {
+      const masterRow = r - 4; // Row 7 in Dashboard = Row 3 in Master
+      dash.getRange(r, 1).setFormula(`=IF(Task_Master!A${masterRow}="","",Task_Master!A${masterRow})`).setFontWeight("bold").setHorizontalAlignment("left");
+      dash.getRange(r, 2).setFormula(`=IF(Task_Master!B${masterRow}="","",Task_Master!B${masterRow})`).setHorizontalAlignment("left");
+      dash.getRange(r, 3).setFormula(`=IF(Task_Master!C${masterRow}="","",Task_Master!C${masterRow})`).setHorizontalAlignment("left");
+      dash.getRange(r, 4).setFormula(`=IF(Task_Master!H${masterRow}="","",Task_Master!H${masterRow})`).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
+      dash.getRange(r, 5).setFormula(`=IF(Task_Master!I${masterRow}="","",Task_Master!I${masterRow})`).setFontWeight("bold").setHorizontalAlignment("center");
+      dash.getRange(r, 6).insertCheckboxes().setHorizontalAlignment("center");
+      if (dash.getRange(r, 6).getValue() !== true) dash.getRange(r, 6).setValue(false);
+      
+      dash.getRange(r, 9).setFormula(
+        `=IF(A${r}="","", IF(E${r}="ON SCHEDULE","🟢 TIER 0: ON SCHEDULE", IF(E${r}="DUE TODAY","🟢 TIER 0: ON SCHEDULE", IF(F${r}=TRUE,"🟡 TIER 1: PAUSED BY MANAGER (CIRCUIT BREAKER)", IF(NOW()>(D${r}+IFERROR(TIMEVALUE(LEFT(Task_Master!G${masterRow},5)),1)+4/24),"🔴 TIER 2: ESCALATED TO LEADERSHIP","🟡 TIER 1: MANAGER 4H GRACE")))))`
+      ).setFontWeight("bold").setHorizontalAlignment("left");
+    }
+  }
+
+  // 3. Re-apply all validations and sync pending desk
+  applyAllSystemDropdowns();
+  refreshPendingTasksDesk();
 }
 
 function cleanSystemSheets() {
@@ -2528,7 +2552,8 @@ function cleanSystemSheets() {
   // 4. Refresh My_Pending_Tasks
   refreshPendingTasksDesk();
 
-  // 5. Re-apply dropdowns and column widths
+  // 5. Re-apply in-sheet smart formulas, dropdowns and column widths
+  applySmartAutoIdFormulas();
   applyAllSystemDropdowns();
   applyPerfectColumnWidths();
 
