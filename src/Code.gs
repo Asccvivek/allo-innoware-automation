@@ -1221,14 +1221,15 @@ function autoGenerateTaskIdForRow_(sheet, row) {
     }
   }
 
-  // Ensure default frequency, cadence, and cutoff match
+  // Frequency, Cadence, and Cut-off are optional/unforced on initial task creation
   const cadenceCell = sheet.getRange(row, 6);
   const cutoffCell = sheet.getRange(row, 7);
   const selectedFreq = String(freqCell.getValue() || '').trim();
   if (selectedFreq === "") {
-    freqCell.setValue("Daily (Mon-Sat)");
-    if (!cadenceCell.getValue()) cadenceCell.setValue(1).setHorizontalAlignment("center");
-    if (!cutoffCell.getValue()) cutoffCell.setValue("19:00 IST").setHorizontalAlignment("center");
+    // Keep empty as requested - not required for starting period
+    freqCell.setValue("");
+    cadenceCell.setValue("");
+    cutoffCell.setValue("");
   } else {
     if (selectedFreq.includes("Weekly")) {
       if (!cadenceCell.getValue()) cadenceCell.setValue(7).setHorizontalAlignment("center");
@@ -1239,7 +1240,7 @@ function autoGenerateTaskIdForRow_(sheet, row) {
     } else if (selectedFreq.includes("Monthly")) {
       if (!cadenceCell.getValue()) cadenceCell.setValue(30).setHorizontalAlignment("center");
       if (!cutoffCell.getValue()) cutoffCell.setValue("17:00 IST").setHorizontalAlignment("center");
-    } else {
+    } else if (selectedFreq.includes("Daily")) {
       if (!cadenceCell.getValue()) cadenceCell.setValue(1).setHorizontalAlignment("center");
       if (!cutoffCell.getValue()) cutoffCell.setValue("19:00 IST").setHorizontalAlignment("center");
     }
@@ -1409,6 +1410,9 @@ function handleEdit(e) {
     } else if (freq === "Monthly (30 Days)") {
       sheet.getRange(row, 6).setValue(30);
       sheet.getRange(row, 7).setValue("17:00 IST");
+    } else if (freq === "") {
+      sheet.getRange(row, 6).setValue("");
+      sheet.getRange(row, 7).setValue("");
     }
     applyAllSystemDropdowns();
     return;
@@ -2427,6 +2431,11 @@ function cleanSystemSheets() {
   }
   const master = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (master) {
+    // If row 7 has ALLO-OPS-105, ensure frequency, cadence, cutoff are blank as requested
+    const r7Id = String(master.getRange("A7").getValue() || '').trim();
+    if (r7Id.match(/^ALLO-OPS-\d+$/i)) {
+      master.getRange("E7:G7").setValue("");
+    }
     const mData = master.getDataRange().getValues();
     for (let r = 2; r < mData.length; r++) {
       const id = String(mData[r][0] || '').trim();
@@ -2806,9 +2815,9 @@ function addNewRecurringTask() {
   masterSheet.getRange(nextRow, 2).setValue("New Operational Task " + (maxNum + 1));
   masterSheet.getRange(nextRow, 3).setValue("Rohan Sharma");
   masterSheet.getRange(nextRow, 4).setValue("Logistics");
-  masterSheet.getRange(nextRow, 5).setValue("Daily (Mon-Sat)");
-  masterSheet.getRange(nextRow, 6).setValue(1).setHorizontalAlignment("center");
-  masterSheet.getRange(nextRow, 7).setValue("19:00 IST").setHorizontalAlignment("center");
+  masterSheet.getRange(nextRow, 5).setValue("");
+  masterSheet.getRange(nextRow, 6).setValue("");
+  masterSheet.getRange(nextRow, 7).setValue("");
   masterSheet.getRange(nextRow, 8).setValue(d0).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 9).setFormula(`=IF(H${nextRow}="","",IF(NOW()>H${nextRow}+IFERROR(TIMEVALUE(LEFT(G${nextRow},5)),1),"OVERDUE",IF(H${nextRow}<=TODAY(),"DUE TODAY","ON SCHEDULE")))`).setFontWeight("bold").setHorizontalAlignment("center");
   masterSheet.getRange(nextRow, 10, 1, 2).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
