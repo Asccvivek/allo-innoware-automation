@@ -14,14 +14,14 @@ const CONFIG = {
   ARCHITECT_NAME: "Vivek Debnath",
   
   // Default Corporate Inboxes (Can be dynamically overridden sheet-wise by any tester/evaluator)
-  DEFAULT_MANAGER_EMAIL: "viknthdv@gmail.com",
+  DEFAULT_MANAGER_EMAIL: "hr.ops.allo@gmail.com",
   DEFAULT_LEADERSHIP_EMAIL: "vivekdvnath@gmail.com",
   HR_SUBMISSION_EMAIL: "hr.ops.allo@gmail.com",
   
   // Enterprise Departmental Inboxes for Each Team Member
   EMPLOYEE_EMAILS: {
     "Rohan Sharma": "asccvivek@gmail.com",
-    "Priya Patel": "hokob82428@anonmart.com",
+    "Priya Patel": "bikeme5031@afronewz.com",
     "Ankit Verma": "vaidm7oedd@ruutukf.com",
     "Sneha Kulkarni": "hqcytau@mailto.plus"
   },
@@ -308,10 +308,10 @@ function setupOverviewSheet(ss) {
     .setBackground(CONFIG.COLOR_NAVY).setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10);
 
   sheet.getRange("A20:C20").merge().setValue("Operations Manager Alert Recipient (Tier 1):").setFontWeight("bold").setHorizontalAlignment("right").setBackground("#F1F5F9");
-  sheet.getRange("D20:G20").merge().setValue("operations.manager@alloinnoware.com").setFontWeight("bold").setBackground(CONFIG.COLOR_YELLOW).setHorizontalAlignment("left");
+  sheet.getRange("D20:G20").merge().setValue("hr.ops.allo@gmail.com").setFontWeight("bold").setBackground(CONFIG.COLOR_YELLOW).setHorizontalAlignment("left");
 
   sheet.getRange("A21:C21").merge().setValue("Leadership Escalation Recipient (Tier 2):").setFontWeight("bold").setHorizontalAlignment("right").setBackground("#F1F5F9");
-  sheet.getRange("D21:G21").merge().setValue("founder@alloinnoware.com").setFontWeight("bold").setBackground(CONFIG.COLOR_YELLOW).setHorizontalAlignment("left");
+  sheet.getRange("D21:G21").merge().setValue("vivekdvnath@gmail.com").setFontWeight("bold").setBackground(CONFIG.COLOR_YELLOW).setHorizontalAlignment("left");
 
   sheet.getRange("A22:C22").merge().setValue("Optional Notification CC Recipient:").setFontWeight("bold").setHorizontalAlignment("right").setBackground("#F1F5F9");
   sheet.getRange("D22:G22").merge().setValue("hr.ops.allo@gmail.com").setBackground("#F8FAFC").setHorizontalAlignment("left");
@@ -365,10 +365,10 @@ function setupOverviewSheet(ss) {
     .setBackground("#475569").setFontColor("#FFFFFF").setFontWeight("bold").setFontSize(10).setHorizontalAlignment("center");
 
   const empDirRows = [
-    ["Rohan Sharma", "Logistics", "rohan.logistics@alloinnoware.com", "Marketplace Dispatch & 3PL Logistics Lead", "Active", "WhatsApp Group Snippet / Manifest AWB", "Filter - Rohan Sharma"],
-    ["Priya Patel", "Customer Experience", "priya.cx@alloinnoware.com", "Customer Returns (RTO) & Damaged Goods Portal Lead", "Active", "Zendesk / Returns Portal Ticket ID", "Filter - Priya Patel"],
-    ["Ankit Verma", "E-Commerce Ops", "ankit.ecommerce@alloinnoware.com", "Marketplace Settlement & Pricing Reconciliation Lead", "Active", "Finance Settlement Ticket ID", "Filter - Ankit Verma"],
-    ["Sneha Kulkarni", "Supply Chain", "sneha.supplychain@alloinnoware.com", "Monthly 3PL Storage & Warehouse Audit Lead", "Active", "WMS Storage Audit Report Ticket ID", "Filter - Sneha Kulkarni"],
+    ["Rohan Sharma", "Logistics", "asccvivek@gmail.com", "Marketplace Dispatch & 3PL Logistics Lead", "Active", "WhatsApp Group Snippet / Manifest AWB", "Filter - Rohan Sharma"],
+    ["Priya Patel", "Customer Experience", "bikeme5031@afronewz.com", "Customer Returns (RTO) & Damaged Goods Portal Lead", "Active", "Zendesk / Returns Portal Ticket ID", "Filter - Priya Patel"],
+    ["Ankit Verma", "E-Commerce Ops", "vaidm7oedd@ruutukf.com", "Marketplace Settlement & Pricing Reconciliation Lead", "Active", "Finance Settlement Ticket ID", "Filter - Ankit Verma"],
+    ["Sneha Kulkarni", "Supply Chain", "hqcytau@mailto.plus", "Monthly 3PL Storage & Warehouse Audit Lead", "Active", "WMS Storage Audit Report Ticket ID", "Filter - Sneha Kulkarni"],
     ["", "Operations", "", "Assign operational tasks via Task_Master", "Active", "WhatsApp Group Snippet / Manifest AWB", ""],
     ["", "Operations", "", "Assign operational tasks via Task_Master", "Active", "WhatsApp Group Snippet / Manifest AWB", ""],
     ["", "Operations", "", "Assign operational tasks via Task_Master", "Active", "WhatsApp Group Snippet / Manifest AWB", ""]
@@ -448,12 +448,12 @@ function setupTaskMasterSheet(ss) {
   sheet.getRange(2, 1, 50, headers.length).setWrap(true);
   sheet.getRange(2, 1, 1, headers.length).setBackground("#334155").setFontColor("#FFFFFF").setFontWeight("bold");
 
-  // Set to Past Dates for Comprehensive End-to-End Overdue & Notification Testing (-1d, -7d, -15d, -30d):
+  // Exactly 1 Overdue Task (ALLO-OPS-101) & 3 On-Schedule Tasks for Crystal-Clear Demo
   const now = new Date();
   const dDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
-  const dWeekly = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7, 0, 0, 0, 0);
-  const dFortnightly = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 15, 0, 0, 0, 0);
-  const dMonthly = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30, 0, 0, 0, 0);
+  const dWeekly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 0, 0, 0, 0);
+  const dFortnightly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10, 0, 0, 0, 0);
+  const dMonthly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 25, 0, 0, 0, 0);
 
   // Real-time Urgency Formula: NOW() > Cutoff today -> "OVERDUE", else if H<=TODAY() -> "DUE TODAY", else "ON SCHEDULE"
   const f3 = '=IF(H3="","",IF(NOW()>H3+IFERROR(TIMEVALUE(LEFT(G3,5)),1),"OVERDUE",IF(H3<=TODAY(),"DUE TODAY","ON SCHEDULE")))';
@@ -462,7 +462,7 @@ function setupTaskMasterSheet(ss) {
   const f6 = '=IF(H6="","",IF(NOW()>H6+IFERROR(TIMEVALUE(LEFT(G6,5)),1),"OVERDUE",IF(H6<=TODAY(),"DUE TODAY","ON SCHEDULE")))';
 
   const seedTasks = [
-    ["ALLO-OPS-101", "Daily Operations Update & Marketplace Dispatch Status", "Rohan Sharma", "Logistics", "Daily (Mon-Sat)", 1, "19:00 IST", dDaily, f3, false, false, "", "21/11/2026 09:00:00", "Operations Lead (Admin)"],
+    ["ALLO-OPS-101", "Daily Operations Update & Marketplace Dispatch Status", "Rohan Sharma", "Logistics", "Daily (Mon-Sat)", 1, "19:00 IST", dDaily, f3, true, false, "23/11/2026 08:58:31", "21/11/2026 09:00:00", "Operations Lead (Admin)"],
     ["ALLO-OPS-102", "Portal Task A: Customer Return (RTO) & Damaged Goods Portal Audit", "Priya Patel", "Customer Experience", "Weekly (7 Days)", 7, "18:00 IST", dWeekly, f4, false, false, "", "15/11/2026 09:00:00", "Operations Lead (Admin)"],
     ["ALLO-OPS-103", "Portal Task B: Marketplace Settlement & Pricing Reconciliation", "Ankit Verma", "E-Commerce Ops", "Fortnightly (15 Days)", 15, "17:00 IST", dFortnightly, f5, false, false, "", "07/11/2026 09:00:00", "Operations Lead (Admin)"],
     ["ALLO-OPS-104", "Portal Task C: Monthly 3PL Warehouse Storage & Fulfillment Audit", "Sneha Kulkarni", "Supply Chain", "Monthly (30 Days)", 30, "17:00 IST", dMonthly, f6, false, false, "", "23/10/2026 09:00:00", "Operations Lead (Admin)"]
@@ -2422,32 +2422,88 @@ function applySmartAutoIdFormulas() {
 
 function cleanSystemSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const dash = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
-  if (dash) {
-    const lastR = dash.getLastRow();
-    if (lastR > 11) {
-      dash.getRange(12, 1, lastR - 11, dash.getLastColumn()).clearContent().clearFormat().clearDataValidations();
-    }
+  const now = new Date();
+
+  // 1. Sync Inboxes & Employee Directory on System_Overview_&_SLA
+  const overview = ss.getSheetByName(CONFIG.SHEET_OVERVIEW);
+  if (overview) {
+    overview.getRange("D20").setValue("hr.ops.allo@gmail.com");
+    overview.getRange("D21").setValue("vivekdvnath@gmail.com");
+    overview.getRange("D22").setValue("hr.ops.allo@gmail.com");
+    overview.getRange("C33").setValue("asccvivek@gmail.com");
+    overview.getRange("C34").setValue("bikeme5031@afronewz.com");
+    overview.getRange("C35").setValue("vaidm7oedd@ruutukf.com");
+    overview.getRange("C36").setValue("hqcytau@mailto.plus");
   }
+
+  // 2. Align Task_Master with Exactly 1 Overdue Task (ALLO-OPS-101) & 3 On-Schedule Tasks
   const master = ss.getSheetByName(CONFIG.SHEET_MASTER);
   if (master) {
-    // If row 7 has ALLO-OPS-105, ensure frequency, cadence, cutoff are blank as requested
-    const r7Id = String(master.getRange("A7").getValue() || '').trim();
-    if (r7Id.match(/^ALLO-OPS-\d+$/i)) {
-      master.getRange("E7:G7").setValue("");
+    const dDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+    const dWeekly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 0, 0, 0, 0);
+    const dFortnightly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10, 0, 0, 0, 0);
+    const dMonthly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 25, 0, 0, 0, 0);
+
+    // Row 3: ALLO-OPS-101 (Only Overdue Task)
+    master.getRange("H3").setValue(dDaily).setNumberFormat("dd/MM/yyyy");
+    master.getRange("J3").insertCheckboxes().setValue(true).setHorizontalAlignment("center");
+    master.getRange("K3").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    if (!master.getRange("L3").getValue()) {
+      master.getRange("L3").setValue("23/11/2026 08:58:31").setNumberFormat("dd/MM/yyyy HH:mm:ss");
     }
-    const mData = master.getDataRange().getValues();
-    for (let r = 2; r < mData.length; r++) {
-      const id = String(mData[r][0] || '').trim();
-      if (id.match(/^ALLO-OPS-\d+$/i)) {
-        master.getRange(r + 1, 10, 1, 2).insertCheckboxes().setHorizontalAlignment("center");
-      }
+
+    // Row 4: ALLO-OPS-102 (On Schedule)
+    master.getRange("H4").setValue(dWeekly).setNumberFormat("dd/MM/yyyy");
+    master.getRange("J4").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    master.getRange("K4").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    master.getRange("L4").setValue("");
+
+    // Row 5: ALLO-OPS-103 (On Schedule)
+    master.getRange("H5").setValue(dFortnightly).setNumberFormat("dd/MM/yyyy");
+    master.getRange("J5").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    master.getRange("K5").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    master.getRange("L5").setValue("");
+
+    // Row 6: ALLO-OPS-104 (On Schedule)
+    master.getRange("H6").setValue(dMonthly).setNumberFormat("dd/MM/yyyy");
+    master.getRange("J6").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    master.getRange("K6").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    master.getRange("L6").setValue("");
+
+    // Wipe Rows 7 to 50 so sheet is clean for live task creation during the call
+    master.getRange(7, 1, 44, 14).clearContent().clearFormat().clearDataValidations();
+  }
+
+  // 3. Align Manager_Dashboard
+  const dash = ss.getSheetByName(CONFIG.SHEET_DASHBOARD);
+  if (dash) {
+    // Row 7 (ALLO-OPS-101): Unacknowledged so Tier 1 4h Grace shows actively
+    dash.getRange("F7").insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+    dash.getRange("G7").setValue("");
+    dash.getRange("H7").setValue("");
+
+    // Rows 8-11: Clear checkboxes and follow-up notes
+    for (let r = 8; r <= 11; r++) {
+      dash.getRange(r, 6).insertCheckboxes().setValue(false).setHorizontalAlignment("center");
+      dash.getRange(r, 7).setValue("");
+      dash.getRange(r, 8).setValue("");
+    }
+
+    const lastR = dash.getLastRow();
+    if (lastR > 10) {
+      dash.getRange(11, 1, lastR - 10, dash.getLastColumn()).clearContent().clearFormat().clearDataValidations();
     }
   }
+
+  // 4. Refresh My_Pending_Tasks
+  refreshPendingTasksDesk();
+
+  // 5. Re-apply dropdowns and column widths
   applyAllSystemDropdowns();
   applyPerfectColumnWidths();
+
   try {
-    ss.toast("System sheets cleaned and aligned!", "Cleanup Complete", 4);
+    ss.toast("✨ Cleaned up system: 1 Overdue Task active, employee test emails synced & Manager set to HR!", "Production Demo State Ready", 5);
   } catch (e) {}
 }
 
