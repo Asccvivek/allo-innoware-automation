@@ -1525,12 +1525,15 @@ function filterPendingDeskByEmployee(pendingSheet, selectedEmployee) {
   todayMidnight.setHours(0, 0, 0, 0);
 
   let filteredRows = [];
+  const sel = String(selectedEmployee || '').trim().toLowerCase();
+  const isAll = (!sel || sel === "all team members" || sel === "all" || sel === "" || sel.includes("all"));
+
   for (let i = 2; i < masterData.length; i++) {
-    const taskId = masterData[i][0];
+    const taskId = String(masterData[i][0] || '').trim();
     if (!taskId) continue;
     const taskName = masterData[i][1];
-    const assignee = masterData[i][2];
-    const dueDate = new Date(masterData[i][7]);
+    const assignee = String(masterData[i][2] || '').trim();
+    const dueDate = masterData[i][7] ? new Date(masterData[i][7]) : new Date();
     const cutoffStr = masterData[i][6];
     const deadline = getDeadline_(dueDate, cutoffStr);
 
@@ -1541,13 +1544,16 @@ function filterPendingDeskByEmployee(pendingSheet, selectedEmployee) {
       urgency = "DUE TODAY";
     }
 
-    if (!selectedEmployee || selectedEmployee === "All Team Members" || assignee === selectedEmployee) {
+    const aClean = assignee.toLowerCase();
+    const isMatch = isAll || (aClean === sel) || (sel.includes(aClean) && aClean.length > 2) || (aClean.includes(sel) && sel.length > 2);
+
+    if (isMatch) {
       filteredRows.push([taskId, taskName, assignee, dueDate, urgency, "", "", false]);
     }
   }
 
-  const lastRow = Math.max(pendingSheet.getLastRow(), 6);
-  pendingSheet.getRange(3, 1, lastRow - 2, 8).clearContent().clearFormat().clearDataValidations();
+  const lastRow = Math.max(pendingSheet.getLastRow(), 50);
+  pendingSheet.getRange(3, 1, lastRow - 2, 8).clearContent().clearFormat().clearDataValidations().removeCheckboxes();
 
   if (filteredRows.length > 0) {
     const rCount = filteredRows.length;
