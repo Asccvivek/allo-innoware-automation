@@ -2444,9 +2444,27 @@ function applySmartAutoIdFormulas() {
     }
   }
 
-  // 3. Re-apply all validations and sync pending desk
+  // 2b. My_Pending_Tasks: Pure In-Sheet Live Filter Formula (0ms Latency for All Assigned Tasks)
+  const pending = ss.getSheetByName(CONFIG.SHEET_PENDING);
+  if (pending) {
+    pending.getRange("A3:H50").clearContent().clearDataValidations().removeCheckboxes();
+    pending.getRange("A3").setFormula(
+      `=IFERROR(FILTER({Task_Master!A3:C50, Task_Master!H3:I50}, Task_Master!A3:A50<>"", (Task_Master!C3:C50=D1)+(D1="All Team Members")+(D1="")), "")`
+    );
+    pending.getRange("A3:A50").setFontWeight("bold").setHorizontalAlignment("left");
+    pending.getRange("D3:D50").setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
+    pending.getRange("E3:E50").setFontWeight("bold").setHorizontalAlignment("center");
+    pending.getRange("F3:F50").setBackground(CONFIG.COLOR_YELLOW);
+    pending.getRange("G3:G50").setBackground("#F8FAFC");
+    pending.getRange("H3:H50").insertCheckboxes().setHorizontalAlignment("center");
+    for (let r = 3; r <= 15; r++) {
+      pending.getRange(r, 8).setValue(false);
+    }
+    pending.getRange("A2:H15").setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  }
+
+  // 3. Re-apply all validations
   applyAllSystemDropdowns();
-  refreshPendingTasksDesk();
 }
 
 function cleanSystemSheets() {
