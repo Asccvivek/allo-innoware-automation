@@ -9,7 +9,7 @@
 [![Google Sheets](https://img.shields.io/badge/Google%20Sheets-100%25%20Operational-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)](https://docs.google.com/spreadsheets/d/14MwdPdHUglsY4Bh1cwtU4zWj6IHqL8_uArUmeMQ5qW4/edit)
 [![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-V8%20Runtime-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://script.google.com)
 [![QA Status](https://img.shields.io/badge/QA%20Status-16%2F16%20Checks%20Passed-10B981?style=for-the-badge)](docs/QA_AUDIT_REPORT.md)
-[![Privacy](https://img.shields.io/badge/Repo-Private-red?style=for-the-badge)]()
+[![Visibility](https://img.shields.io/badge/Repo-Public-10B981?style=for-the-badge)](https://github.com/Asccvivek/allo-innoware-automation)
 
 ---
 
