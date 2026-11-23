@@ -65,9 +65,10 @@ function getNotificationRoutingConfig_() {
     activeUser = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
   } catch (e) {}
 
-  let managerEmail = "";
-  let leaderEmail = "";
-  let ccEmail = "";
+  // Strictly assign hr.ops.allo@gmail.com as the Operations Manager (Level 1 Alert recipient)
+  let managerEmail = "hr.ops.allo@gmail.com";
+  let leaderEmail = "vivekdvnath@gmail.com";
+  let ccEmail = "hr.ops.allo@gmail.com";
 
   const overviewSheet = ss ? ss.getSheetByName(CONFIG.SHEET_OVERVIEW) : null;
   if (overviewSheet) {
@@ -79,12 +80,12 @@ function getNotificationRoutingConfig_() {
     if (valCC.includes("@")) ccEmail = valCC;
   }
 
-  // Dynamic Fallback: If not explicitly set in the sheet, route directly to active tester's Google Account!
-  if (!managerEmail) {
-    managerEmail = activeUser || CONFIG.DEFAULT_MANAGER_EMAIL;
+  // Ensure managerEmail is ALWAYS hr.ops.allo@gmail.com if fallback is needed
+  if (!managerEmail || managerEmail === activeUser) {
+    managerEmail = "hr.ops.allo@gmail.com";
   }
   if (!leaderEmail) {
-    leaderEmail = activeUser || CONFIG.DEFAULT_LEADERSHIP_EMAIL;
+    leaderEmail = "vivekdvnath@gmail.com";
   }
 
   return {
