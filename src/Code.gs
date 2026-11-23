@@ -2450,17 +2450,35 @@ function onOpen() {
     Logger.log("onOpen UI initialization: " + e.message);
   }
 
-  // Automatic Employee Desk Isolation: Detect logged-in user on open
+  // Automatic Employee Desk Isolation: Dynamically detect logged-in user against directory
   try {
-    const email = (Session.getActiveUser().getEmail() || "").toLowerCase();
+    const userEmail = (Session.getActiveUser().getEmail() || "").toLowerCase().trim();
     const pendingSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_PENDING);
-    if (pendingSheet && email) {
+    if (pendingSheet && userEmail) {
+      const dirObj = getEmployeeDirectory_();
+      const dir = dirObj.directory;
       let matchedEmp = "";
-      if (email.includes("rohan")) matchedEmp = "Rohan Sharma";
-      else if (email.includes("priya")) matchedEmp = "Priya Patel";
-      else if (email.includes("ankit")) matchedEmp = "Ankit Verma";
-      else if (email.includes("sneha")) matchedEmp = "Sneha Kulkarni";
-      
+
+      // 1. Direct exact match with registered work emails in System_Overview_&_SLA
+      for (const name in dir) {
+        const empEmail = (dir[name].email || "").toLowerCase().trim();
+        if (empEmail && (empEmail === userEmail || userEmail === empEmail)) {
+          matchedEmp = name;
+          break;
+        }
+      }
+
+      // 2. Partial username / name match fallback
+      if (!matchedEmp) {
+        for (const name in dir) {
+          const parts = name.toLowerCase().split(/\s+/);
+          if (parts.some(p => p.length >= 3 && userEmail.includes(p))) {
+            matchedEmp = name;
+            break;
+          }
+        }
+      }
+
       if (matchedEmp) {
         pendingSheet.getRange("D1").setValue(matchedEmp);
         filterPendingDeskByEmployee(pendingSheet, matchedEmp);
