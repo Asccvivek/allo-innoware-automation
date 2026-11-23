@@ -569,9 +569,16 @@ function setupPendingTasksSheet(ss) {
     dDaily.setDate(dDaily.getDate() + 1);
   }
 
-  // Active Pending Tasks Due Today (Daily Operations Task matching Employee A)
+  // Active Pending Tasks across all team members
+  const dWeekly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 0, 0, 0, 0);
+  const dFortnightly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10, 0, 0, 0, 0);
+  const dMonthly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 25, 0, 0, 0, 0);
+
   const pendingRows = [
-    ["ALLO-OPS-101", "Daily Operations Update & Marketplace Dispatch Status", "Rohan Sharma", dDaily, "DUE TODAY", "", "", false]
+    ["ALLO-OPS-101", "Daily Operations Update & Marketplace Dispatch Status", "Rohan Sharma", dDaily, "OVERDUE", "", "", false],
+    ["ALLO-OPS-102", "Portal Task A: Customer Return (RTO) & Damaged Goods Portal Audit", "Priya Patel", dWeekly, "ON SCHEDULE", "", "", false],
+    ["ALLO-OPS-103", "Portal Task B: Marketplace Settlement & Pricing Reconciliation", "Ankit Verma", dFortnightly, "ON SCHEDULE", "", "", false],
+    ["ALLO-OPS-104", "Portal Task C: Monthly 3PL Warehouse Storage & Fulfillment Audit", "Sneha Kulkarni", dMonthly, "ON SCHEDULE", "", "", false]
   ];
 
   sheet.getRange(3, 1, pendingRows.length, headers.length).setValues(pendingRows);
@@ -2542,8 +2549,37 @@ function cleanSystemSheets() {
     }
   }
 
-  // 4. Refresh My_Pending_Tasks
-  refreshPendingTasksDesk();
+  // 4. Populate My_Pending_Tasks with all assigned team tasks
+  const pending = ss.getSheetByName(CONFIG.SHEET_PENDING);
+  if (pending) {
+    const dDaily = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+    const dWeekly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 3, 0, 0, 0, 0);
+    const dFortnightly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10, 0, 0, 0, 0);
+    const dMonthly = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 25, 0, 0, 0, 0);
+
+    const pendingRows = [
+      ["ALLO-OPS-101", "Daily Operations Update & Marketplace Dispatch Status", "Rohan Sharma", dDaily, "OVERDUE", "", "", false],
+      ["ALLO-OPS-102", "Portal Task A: Customer Return (RTO) & Damaged Goods Portal Audit", "Priya Patel", dWeekly, "ON SCHEDULE", "", "", false],
+      ["ALLO-OPS-103", "Portal Task B: Marketplace Settlement & Pricing Reconciliation", "Ankit Verma", dFortnightly, "ON SCHEDULE", "", "", false],
+      ["ALLO-OPS-104", "Portal Task C: Monthly 3PL Warehouse Storage & Fulfillment Audit", "Sneha Kulkarni", dMonthly, "ON SCHEDULE", "", "", false]
+    ];
+
+    pending.getRange(3, 1, 48, 8).clearContent().clearFormat().clearDataValidations().removeCheckboxes();
+    pending.getRange(3, 1, pendingRows.length, 8).setValues(pendingRows);
+    pending.getRange(3, 1, pendingRows.length, 1).setFontWeight("bold").setHorizontalAlignment("left");
+    pending.getRange(3, 2, pendingRows.length, 1).setHorizontalAlignment("left");
+    pending.getRange(3, 3, pendingRows.length, 1).setHorizontalAlignment("left");
+    pending.getRange(3, 4, pendingRows.length, 1).setNumberFormat("dd/MM/yyyy").setHorizontalAlignment("center");
+    pending.getRange(3, 5, pendingRows.length, 1).setFontWeight("bold").setHorizontalAlignment("center");
+    pending.getRange(3, 6, pendingRows.length, 1).setBackground(CONFIG.COLOR_YELLOW);
+    pending.getRange(3, 7, pendingRows.length, 1).setBackground("#F8FAFC");
+    pending.getRange(3, 8, pendingRows.length, 1).insertCheckboxes().setHorizontalAlignment("center");
+    for (let r = 3; r <= 3 + pendingRows.length - 1; r++) {
+      pending.getRange(r, 8).setValue(false);
+    }
+    pending.getRange(3, 1, pendingRows.length, 8).setBorder(true, true, true, true, true, true, CONFIG.COLOR_BORDER, SpreadsheetApp.BorderStyle.SOLID);
+    pending.getRange("D1").setValue("All Team Members");
+  }
 
   // 5. Re-apply in-sheet smart formulas, dropdowns and column widths
   applySmartAutoIdFormulas();
